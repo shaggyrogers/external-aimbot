@@ -8,7 +8,6 @@
 
 */
 
-
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,8 +19,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
-
-bool findTargetWindow(Display* display, Window &window, std::string name)
+bool findTargetWindow(Display* display, Window& window, std::string name)
 {
     bool found = false;
     Window rootWindow = RootWindow(display, DefaultScreen(display));
@@ -35,29 +33,15 @@ bool findTargetWindow(Display* display, Window &window, std::string name)
     Window* list;
     char* windowName;
 
-    int status = XGetWindowProperty(
-        display,
-        rootWindow,
-        atom,
-        0L,
-        (~0L),
-        false,
-        AnyPropertyType,
-        &actualType,
-        &format,
-        &numItems,
-        &bytesAfter,
-        &data
-    );
+    int status = XGetWindowProperty(display, rootWindow, atom, 0L, ~0L, false,
+        AnyPropertyType, &actualType, &format,
+        &numItems, &bytesAfter, &data);
     list = (Window*)data;
-
-    std::cerr << "Got " << numItems << " children" << std::endl;
 
     if (status >= Success && numItems) {
         for (int i = 0; i < numItems; ++i) {
             if (XFetchName(display, list[i], &windowName) > 0) {
                 std::string windowNameStr(windowName);
-                std::cerr << windowNameStr << std::endl;
 
                 if (windowNameStr.find(name) == 0) {
                     window = list[i];
@@ -75,7 +59,8 @@ bool findTargetWindow(Display* display, Window &window, std::string name)
     return found;
 }
 
-char* matToArray(cv::Mat mat, int &size)
+// Converts
+char* matToArray(cv::Mat mat, int& size)
 {
     size = mat.total() * mat.elemSize();
     char* buf = new char[size];
@@ -85,11 +70,11 @@ char* matToArray(cv::Mat mat, int &size)
 }
 
 // Take a screenshot of a window whose title contains name.
-// Returns a pointer to an array of size pixels (BGR) representing
+// Returns a pointer to an array of size pixels (RGB) representing
 // a width x height image
-char* screenshot(char* name, int &size, int &width, int &height)
+char* screenshot(char* name, int& size, int& width, int& height)
 {
-    Display *display = XOpenDisplay(NULL);
+    Display* display = XOpenDisplay(NULL);
     Window rootWindow = RootWindow(display, DefaultScreen(display));
     Window targetWindow;
 

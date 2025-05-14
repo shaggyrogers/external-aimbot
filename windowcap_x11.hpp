@@ -12,6 +12,6 @@
 #ifndef __WINDOWCAP_X11_H__
 #define __WINDOWCAP_X11_H__
 
-char* screenshot(char* name, int &size, int &width, int &height);
+char* screenshot(char* name, int& size, int& width, int& height);
 
 #endif // __WINDOWCAP_X11_H__

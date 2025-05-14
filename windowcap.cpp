@@ -9,7 +9,6 @@
 
 */
 
-
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <iostream>
@@ -22,19 +21,16 @@
 
 #define MODULE_NAME "windowcap"
 
-
 // TODO: avoid having to find window each time
 
-static PyObject * windowcap_screenshot_window(PyObject *self, PyObject *args);
+static PyObject* windowcap_screenshot_window(PyObject* self, PyObject* args);
 
 static PyMethodDef WindowcapMethods[] = {
-    {
-        "screenshot_window",
+    { "screenshot_window",
         windowcap_screenshot_window,
         METH_VARARGS,
-        "Select window with title containing the given string."
-    },
-    {NULL, NULL, 0, NULL}
+        "Select window with title containing the given string." },
+    { NULL, NULL, 0, NULL }
 };
 
 static struct PyModuleDef windowcapmodule = {
@@ -50,9 +46,9 @@ PyMODINIT_FUNC PyInit_windowcap(void)
     return PyModule_Create(&windowcapmodule);
 }
 
-static PyObject * windowcap_screenshot_window(PyObject *self, PyObject *args)
+static PyObject* windowcap_screenshot_window(PyObject* self, PyObject* args)
 {
-    const char *name;
+    const char* name;
     int sts;
 
     if (!PyArg_ParseTuple(args, "s", &name)) {
@@ -71,20 +67,15 @@ static PyObject * windowcap_screenshot_window(PyObject *self, PyObject *args)
     PyObject* bytes = PyBytes_FromStringAndSize(buf, size);
     delete buf;
 
-    return PyTuple_Pack(
-        3,
-        PyLong_FromLong(width),
-        PyLong_FromLong(height),
-        bytes
-    );
+    return PyTuple_Pack(3, PyLong_FromLong(width), PyLong_FromLong(height), bytes);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     PyStatus status;
     PyConfig config;
     PyConfig_InitPythonConfig(&config);
-    PyObject *pmodule;
+    PyObject* pmodule;
 
     // Add our module as a built-in, before Py_Initialize
     if (PyImport_AppendInittab(MODULE_NAME, PyInit_windowcap) == -1) {
@@ -114,12 +105,13 @@ int main(int argc, char *argv[])
 
     if (!pmodule) {
         PyErr_Print();
-        std::cerr << "Error: could not import module '" << MODULE_NAME << "'" << std::endl;
+        std::cerr << "Error: could not import module '" << MODULE_NAME << "'"
+                  << std::endl;
     }
 
     return 0;
 
-  exception:
-     PyConfig_Clear(&config);
-     Py_ExitStatusException(status);
+exception:
+    PyConfig_Clear(&config);
+    Py_ExitStatusException(status);
 }
