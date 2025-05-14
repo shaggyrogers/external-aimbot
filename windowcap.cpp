@@ -5,7 +5,7 @@
   Description:           Python interface.
                          Adapted from https://docs.python.org/3/extending/extending.html
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-13
+  Modification Date:     2025-05-14
 
 */
 
@@ -68,11 +68,14 @@ static PyObject * windowcap_screenshot_window(PyObject *self, PyObject *args)
         return NULL;
     }
 
+    PyObject* bytes = PyBytes_FromStringAndSize(buf, size);
+    delete buf;
+
     return PyTuple_Pack(
         3,
         PyLong_FromLong(width),
         PyLong_FromLong(height),
-        PyBytes_FromStringAndSize(buf, size)
+        bytes
     );
 }
 

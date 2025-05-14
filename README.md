@@ -1,6 +1,10 @@
 # external-aimbot
 Fully external aimbot (WIP)
 
+## Requirements
+
+Only X11 is supported.
+
 ## Usage
 
 * Build windowcap module
