@@ -6,24 +6,72 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-13
+  Modification Date:     2025-05-15
 
 """
 
+import logging
+import signal
 import sys
+import time
 
 from PIL import Image
+from ultralytics import YOLO
 
 import windowcap
+import overlay
+
+# pylint: disable=c-extension-no-member
+
+logging.basicConfig(level=logging.DEBUG)
+
+
+def sigintHandler(signal, frame) -> None:
+    logging.getLogger().debug("Got SIGINT, cleaning up and exiting..")
+    overlay.cleanup()
+
+    sys.exit(0)
+
+
+# def mapCoords()
 
 
 def main(*args) -> int:
-    width, height, data = windowcap.screenshot_window("nvim")
+    log = logging.getLogger()
+    signal.signal(signal.SIGINT, sigintHandler)
 
-    img = Image.frombytes("RGB", (width, height), data)
-    img.save("screencap.png")
+    model = YOLO("yolo11s.pt")
+    log.debug("Instantiated model")
 
-    print("Saved result to screencap.png")
+    overlay.init()
+    overlayWidth, overlayHeight = overlay.getWidth(), overlay.getHeight()
+    log.debug("Initialised overlay")
+
+    while True:
+        width, height, data = windowcap.screenshot_window("counter-strike")
+        img = Image.frombytes("RGB", (width, height), data)
+
+        results = model.predict(img)  # , device="cuda:0"
+
+        # Draw
+        overlay.clear()
+
+        for result in results:
+            for box in result.boxes:
+                name = result.names[int(box.cls[0])]
+
+                if name != "person":
+                    continue
+
+                xyxy = tuple(map(lambda v: v.item(), box.xyxy[0].numpy()))
+
+                overlay.addText(name, xyxy[0], xyxy[1], 24, 0.3, 0.9, 0.3, 1, False)
+                overlay.addRectangle(
+                    xyxy[0], xyxy[1], xyxy[2], xyxy[3], 0.1, 1, 0.1, 1, False, 2
+                )
+
+        overlay.draw()
+        # TODO: time.sleep(0) or os.sched_yield() here?
 
     return 0
 

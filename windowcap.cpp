@@ -46,10 +46,13 @@ PyMODINIT_FUNC PyInit_windowcap(void)
     return PyModule_Create(&windowcapmodule);
 }
 
+// screenshot_window(name: str) -> Tuple[int, int, bytes]:
+// Takes a screenshot of a window whose title contains name.
+// Returns a tuple containing the image width, height and pixels (RGB)
+// respectively
 static PyObject* windowcap_screenshot_window(PyObject* self, PyObject* args)
 {
     const char* name;
-    int sts;
 
     if (!PyArg_ParseTuple(args, "s", &name)) {
         return NULL;
