@@ -5,7 +5,7 @@
   Description:           Python interface.
                          Adapted from https://docs.python.org/3/extending/extending.html
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-15
+  Modification Date:     2025-05-19
 
 */
 
@@ -23,13 +23,18 @@
 
 // TODO: avoid having to find window each time
 
-static PyObject* windowcap_screenshot_window(PyObject* self, PyObject* args);
+static PyObject* windowcap_select_window(PyObject* self, PyObject* args);
+static PyObject* windowcap_screenshot(PyObject* self, PyObject* args);
 
 static PyMethodDef WindowcapMethods[] = {
-    { "screenshot_window",
-        windowcap_screenshot_window,
+    { "selectWindow",
+        windowcap_select_window,
         METH_VARARGS,
-        "Select window with title containing the given string." },
+        "Initialise and select target window with the given ID." },
+    { "screenshot",
+        windowcap_screenshot,
+        METH_VARARGS,
+        "Takes a screenshot of the target window." },
     { NULL, NULL, 0, NULL }
 };
 
@@ -46,20 +51,35 @@ PyMODINIT_FUNC PyInit_windowcap(void)
     return PyModule_Create(&windowcapmodule);
 }
 
-// screenshot_window(name: str) -> Tuple[int, int, bytes]:
-// Takes a screenshot of a window whose title contains name.
-// Returns a tuple containing the image width, height and pixels (RGB)
-// respectively
-static PyObject* windowcap_screenshot_window(PyObject* self, PyObject* args)
+// selectWindow(int id) -> int:
+// Initialise and select the target window. Get ID from xwininfo.
+// Returns 0 if successful, or a non-zero value otherwise.
+static PyObject* windowcap_select_window(PyObject* self, PyObject* args)
 {
-    const char* name;
+    unsigned int id;
 
-    if (!PyArg_ParseTuple(args, "s", &name)) {
+    if (!PyArg_ParseTuple(args, "I", &id)) {
+        PyErr_SetString(PyExc_TypeError, "Unable to parse arguments");
+
+        return NULL;
+    }
+
+    return PyLong_FromLong(selectWindow(id));
+}
+
+// screenshot() -> Tuple[int, int, bytes]:
+// Takes a screenshot of the previously selected window.
+// Returns a tuple containing the image width, height and pixels (bytes, RGB) respectively
+static PyObject* windowcap_screenshot(PyObject* self, PyObject* args)
+{
+    if (!PyArg_ParseTuple(args, "")) {
+        PyErr_SetString(PyExc_TypeError, "Unexpected argument(s)");
+
         return NULL;
     }
 
     int size = 0, width = 0, height = 0;
-    char* buf = screenshot((char*)name, size, width, height);
+    char* buf = screenshot(size, width, height);
 
     if (!buf || size <= 0) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to take screenshot!");

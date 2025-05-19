@@ -8,58 +8,33 @@
 
 */
 
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "windowcap_x11.hpp"
 
-#include <opencv2/imgproc/imgproc.hpp>
+XWinInfo gWindowInfo = {
+    .display = NULL,
+    .target = 0
+};
 
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-
-bool findTargetWindow(Display* display, Window& window, std::string name)
+int selectWindow(unsigned int id)
 {
-    bool found = false;
-    Window rootWindow = RootWindow(display, DefaultScreen(display));
-    Atom atom = XInternAtom(display, "_NET_CLIENT_LIST", true);
-    Atom actualType;
-    int format;
-    unsigned long numItems;
-    unsigned long bytesAfter;
+    gWindowInfo.display = XOpenDisplay(NULL);
+    gWindowInfo.target = (Window)id;
 
-    unsigned char* data = (unsigned char*)'\0';
-    Window* list;
-    char* windowName;
+    if (XGetWindowAttributes(gWindowInfo.display, gWindowInfo.target, &gWindowInfo.targetAttrs) == BadWindow) {
+        std::cerr << "Bad window ID: " << id << std::endl;
+        gWindowInfo.target = 0;
+        gWindowInfo.display = 0;
 
-    int status = XGetWindowProperty(display, rootWindow, atom, 0L, ~0L, false,
-        AnyPropertyType, &actualType, &format,
-        &numItems, &bytesAfter, &data);
-    list = (Window*)data;
-
-    if (status >= Success && numItems) {
-        for (int i = 0; i < numItems; ++i) {
-            if (XFetchName(display, list[i], &windowName) > 0) {
-                std::string windowNameStr(windowName);
-
-                if (windowNameStr.find(name) == 0) {
-                    window = list[i];
-                    found = true;
-
-                    break;
-                }
-            }
-        }
+        return 1;
     }
 
-    XFree(windowName);
-    XFree(data);
+    std::cerr << "Found target " << id << ", size " << gWindowInfo.targetAttrs.width
+              << "x" << gWindowInfo.targetAttrs.height << std::endl;
 
-    return found;
+    return 0;
 }
 
-// Converts
+// Copies OpenCV matrix to array. Updates size and returns pointer.
 char* matToArray(cv::Mat mat, int& size)
 {
     size = mat.total() * mat.elemSize();
@@ -72,26 +47,18 @@ char* matToArray(cv::Mat mat, int& size)
 // Take a screenshot of a window whose title contains name.
 // Returns a pointer to an array of size pixels (RGB) representing
 // a width x height image
-char* screenshot(char* name, int& size, int& width, int& height)
+char* screenshot(int& size, int& width, int& height)
 {
-    Display* display = XOpenDisplay(NULL);
-    Window rootWindow = RootWindow(display, DefaultScreen(display));
-    Window targetWindow;
+    if (!gWindowInfo.display || !gWindowInfo.target) {
+        std::cerr << "selectWindow() either failed or was not called first!" << std::endl;
 
-    XWindowAttributes targetWindowAttributes;
-
-    if (findTargetWindow(display, targetWindow, name) == false) {
-        std::cerr << "Error: Cannot find target window." << std::endl;
-
-        return NULL;
+        return 0;
     }
 
-    XGetWindowAttributes(display, targetWindow, &targetWindowAttributes);
+    width = gWindowInfo.targetAttrs.width;
+    height = gWindowInfo.targetAttrs.height;
 
-    width = targetWindowAttributes.width;
-    height = targetWindowAttributes.height;
-
-    XImage* image = XGetImage(display, targetWindow, 0, 0, width, height, AllPlanes, ZPixmap);
+    XImage* image = XGetImage(gWindowInfo.display, gWindowInfo.target, 0, 0, width, height, AllPlanes, ZPixmap);
     cv::Mat frame(height, width, CV_8UC4, image->data);
     cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGB);
 

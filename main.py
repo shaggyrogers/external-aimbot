@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-15
+  Modification Date:     2025-05-19
 
 """
 
@@ -18,6 +18,7 @@ import time
 from PIL import Image
 from ultralytics import YOLO
 
+import arguably
 import windowcap
 import overlay
 
@@ -33,12 +34,16 @@ def sigintHandler(signal, frame) -> None:
     sys.exit(0)
 
 
-# def mapCoords()
-
-
-def main(*args) -> int:
+@arguably.command()
+def main(windowId: str) -> int:
     log = logging.getLogger()
     signal.signal(signal.SIGINT, sigintHandler)
+
+    if windowId.startswith("0x"):
+        windowId = int(windowId[2:], base=16)
+
+    else:
+        windowId = int(windowId)
 
     model = YOLO("yolo11s.pt")
     log.debug("Instantiated model")
@@ -47,8 +52,10 @@ def main(*args) -> int:
     overlayWidth, overlayHeight = overlay.getWidth(), overlay.getHeight()
     log.debug("Initialised overlay")
 
+    print(f"selectWindow returned {windowcap.selectWindow(windowId)}")
+
     while True:
-        width, height, data = windowcap.screenshot_window("counter-strike")
+        width, height, data = windowcap.screenshot()
         img = Image.frombytes("RGB", (width, height), data)
 
         results = model.predict(img)  # , device="cuda:0"
@@ -71,10 +78,10 @@ def main(*args) -> int:
                 )
 
         overlay.draw()
-        # TODO: time.sleep(0) or os.sched_yield() here?
+        time.sleep(0)  # os.sched_yield() ?
 
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(*sys.argv))
+    sys.exit(arguably.run())
