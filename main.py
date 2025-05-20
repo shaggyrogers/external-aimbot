@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-19
+  Modification Date:     2025-05-20
 
 """
 
@@ -50,9 +50,11 @@ def main(windowId: str) -> int:
 
     overlay.init()
     overlayWidth, overlayHeight = overlay.getWidth(), overlay.getHeight()
+    targetWidth, targetHeight = overlay.setTargetWindow(windowId)
     log.debug("Initialised overlay")
 
-    print(f"selectWindow returned {windowcap.selectWindow(windowId)}")
+    assert not windowcap.selectWindow(windowId)
+    log.debug("Initialised windowcap")
 
     while True:
         width, height, data = windowcap.screenshot()
