@@ -5,7 +5,7 @@
   Description:           Python interface.
                          Adapted from https://docs.python.org/3/extending/extending.html
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-19
+  Modification Date:     2025-05-21
 
 */
 
@@ -20,8 +20,6 @@
 #include "windowcap_x11.hpp"
 
 #define MODULE_NAME "windowcap"
-
-// TODO: avoid having to find window each time
 
 static PyObject* windowcap_select_window(PyObject* self, PyObject* args);
 static PyObject* windowcap_screenshot(PyObject* self, PyObject* args);

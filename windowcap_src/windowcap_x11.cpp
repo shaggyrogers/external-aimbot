@@ -3,8 +3,11 @@
   =================
 
   Description:           Takes a screenshot of a window.
-                         Taken from here with modifications:
+                         Adapted from richard-to's example here:
                          https://gist.github.com/richard-to/10017943#file-x11_screen_grab-cpp-L68
+  Author:                Michael De Pasquale
+  Creation Date:         2025-05-13
+  Modification Date:     2025-05-21
 
 */
 
@@ -21,6 +24,7 @@ int selectWindow(unsigned int id)
     gWindowInfo.target = (Window)id;
 
     if (XGetWindowAttributes(gWindowInfo.display, gWindowInfo.target, &gWindowInfo.targetAttrs) == BadWindow) {
+        // We never get here, crashes if XGetWindowAttributes fails
         std::cerr << "Bad window ID: " << id << std::endl;
         gWindowInfo.target = 0;
         gWindowInfo.display = 0;
