@@ -52,9 +52,10 @@ class Model:
                 lambda b: result.names[int(b.cls[0])] == "person", result.boxes
             ):
                 xyxy = tuple(map(lambda v: v.item(), box.xyxy[0].numpy()))
+                breakpoint()
 
                 yield Detection(
-                    box.id,
+                    int(box.id.item()),
                     box.conf.item(),
                     ScreenCoord(xyxy[0], xyxy[1]),
                     ScreenCoord(xyxy[2], xyxy[3]),
