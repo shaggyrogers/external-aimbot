@@ -58,12 +58,11 @@ def main(wId: str) -> int:
 
         for det in detections:
             overlay.addText(
-                str(box.id), det.xy1.x, det.xy1.y, 24, 0.3, 0.9, 0.3, 1, False
+                str(det.id), det.xy1.x, det.xy1.y, 24, 0.3, 0.9, 0.3, 1, False
             )
             overlay.addRectangle(
                 det.xy1.x, det.xy1.y, det.xy2.x, det.xy2.y, 0.1, 1, 0.1, 1, False, 2
             )
-            pass
 
         overlay.draw()
         time.sleep(0)  # os.sched_yield() ?
