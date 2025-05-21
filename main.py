@@ -6,9 +6,10 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-20
+  Modification Date:     2025-05-21
 
 """
+# pylint: disable=c-extension-no-member,import-error
 
 import logging
 import signal
@@ -21,8 +22,8 @@ from ultralytics import YOLO
 import arguably
 import windowcap
 import overlay
+from model import Model
 
-# pylint: disable=c-extension-no-member
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -35,49 +36,34 @@ def sigintHandler(signal, frame) -> None:
 
 
 @arguably.command()
-def main(windowId: str) -> int:
+def main(wId: str) -> int:
     log = logging.getLogger()
     signal.signal(signal.SIGINT, sigintHandler)
+    wId = int(wId[2:], base=16) if wId.startswith("0x") else int(wId)
 
-    if windowId.startswith("0x"):
-        windowId = int(windowId[2:], base=16)
-
-    else:
-        windowId = int(windowId)
-
-    model = YOLO("yolo11s.pt")
-    log.debug("Instantiated model")
+    model = Model("yolo11s.pt")
 
     overlay.init()
-    overlayWidth, overlayHeight = overlay.getWidth(), overlay.getHeight()
-    targetWidth, targetHeight = overlay.setTargetWindow(windowId)
+    overlay.setTargetWindow(wId)
     log.debug("Initialised overlay")
 
-    assert not windowcap.selectWindow(windowId)
+    assert not windowcap.selectWindow(wId)
     log.debug("Initialised windowcap")
 
     while True:
         width, height, data = windowcap.screenshot()
-        img = Image.frombytes("RGB", (width, height), data)
+        detections = model.processFrame(Image.frombytes("RGB", (width, height), data))
 
-        results = model.predict(img)  # , device="cuda:0"
-
-        # Draw
         overlay.clear()
 
-        for result in results:
-            for box in result.boxes:
-                name = result.names[int(box.cls[0])]
-
-                if name != "person":
-                    continue
-
-                xyxy = tuple(map(lambda v: v.item(), box.xyxy[0].numpy()))
-
-                overlay.addText(name, xyxy[0], xyxy[1], 24, 0.3, 0.9, 0.3, 1, False)
-                overlay.addRectangle(
-                    xyxy[0], xyxy[1], xyxy[2], xyxy[3], 0.1, 1, 0.1, 1, False, 2
-                )
+        for det in detections:
+            overlay.addText(
+                str(box.id), det.xy1.x, det.xy1.y, 24, 0.3, 0.9, 0.3, 1, False
+            )
+            overlay.addRectangle(
+                det.xy1.x, det.xy1.y, det.xy2.x, det.xy2.y, 0.1, 1, 0.1, 1, False, 2
+            )
+            pass
 
         overlay.draw()
         time.sleep(0)  # os.sched_yield() ?
