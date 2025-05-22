@@ -6,13 +6,13 @@
   Description:           Wrapper for the object detection/tracking model.
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-21
+  Modification Date:     2025-05-22
 
 """
 
 import logging
 from collections import namedtuple
-from typing import Iterable
+from typing import Any
 
 from ultralytics import YOLO
 from PIL import Image
@@ -26,15 +26,22 @@ ScreenCoord = namedtuple(
         "y",
     ],
 )
-Detection = namedtuple(
-    "Detection",
-    [
-        "id",  # locally unique identifier for target
-        "confidence",  # confidence value, between 0 and 1
-        "xy1",
-        "xy2",
-    ],
-)
+
+
+class Detection:
+    def __init__(
+        self, id: Any, confidence: float, xy1: ScreenCoord, xy2: ScreenCoord
+    ) -> None:
+        self.id = id
+        self.confidence = confidence
+        self.xy1 = xy1
+        self.xy2 = xy2
+
+    def getPosition(self) -> ScreenCoord:
+        return ScreenCoord(
+            (self.xy1.x + self.xy2.x) / 2,
+            (self.xy1.y + self.xy2.y) / 2,
+        )
 
 
 class Model:
@@ -45,18 +52,27 @@ class Model:
         self._model = YOLO(filename)
         self._log.info("Initialised model")
 
-    def processFrame(self, img: Image) -> Iterable[Detection]:
+    def processFrame(self, img: Image) -> list[Detection]:
         """Process frame, detecting/tracking targets. Yields Detection instances."""
+        results = []
+
         for result in self._model.track(img):  # , device="cuda:0"
             for box in filter(
                 lambda b: result.names[int(b.cls[0])] == "person", result.boxes
             ):
                 xyxy = tuple(map(lambda v: v.item(), box.xyxy[0].numpy()))
-                breakpoint()
 
-                yield Detection(
-                    int(box.id.item()),
-                    box.conf.item(),
-                    ScreenCoord(xyxy[0], xyxy[1]),
-                    ScreenCoord(xyxy[2], xyxy[3]),
+                # Skip if no associated tracking ID
+                if box.id is None:
+                    continue
+
+                results.append(
+                    Detection(
+                        int(box.id.item()),
+                        box.conf.item(),
+                        ScreenCoord(xyxy[0], xyxy[1]),
+                        ScreenCoord(xyxy[2], xyxy[3]),
+                    )
                 )
+
+        return results

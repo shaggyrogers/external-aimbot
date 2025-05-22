@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-21
+  Modification Date:     2025-05-22
 
 """
 # pylint: disable=c-extension-no-member,import-error
@@ -23,6 +23,7 @@ import arguably
 import windowcap
 import overlay
 from model import Model
+from aiming import Aiming
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -36,12 +37,10 @@ def sigintHandler(signal, frame) -> None:
 
 
 @arguably.command()
-def main(wId: str) -> int:
+def main(wId: str, sensitivity: float = 1) -> int:
     log = logging.getLogger()
     signal.signal(signal.SIGINT, sigintHandler)
     wId = int(wId[2:], base=16) if wId.startswith("0x") else int(wId)
-
-    model = Model("yolo11s.pt")
 
     overlay.init()
     overlay.setTargetWindow(wId)
@@ -50,18 +49,34 @@ def main(wId: str) -> int:
     assert not windowcap.selectWindow(wId)
     log.debug("Initialised windowcap")
 
+    aiming = Aiming(sensitivity=sensitivity)
+
+    model = Model("yolo11s.pt")
+
     while True:
         width, height, data = windowcap.screenshot()
         detections = model.processFrame(Image.frombytes("RGB", (width, height), data))
 
+        target = aiming.run((width, height), detections)
+
         overlay.clear()
 
         for det in detections:
+            isTarget = det is target
             overlay.addText(
                 str(det.id), det.xy1.x, det.xy1.y, 24, 0.3, 0.9, 0.3, 1, False
             )
             overlay.addRectangle(
-                det.xy1.x, det.xy1.y, det.xy2.x, det.xy2.y, 0.1, 1, 0.1, 1, False, 2
+                det.xy1.x,
+                det.xy1.y,
+                det.xy2.x,
+                det.xy2.y,
+                0.1 if not isTarget else 1,
+                1 if not isTarget else 0.1,
+                0.1,
+                1,
+                False,
+                2,
             )
 
         overlay.draw()
