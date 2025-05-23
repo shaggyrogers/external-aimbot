@@ -98,7 +98,7 @@ class Model:
             for box in filter(
                 lambda b: result.names[int(b.cls[0])] == "person", result.boxes
             ):
-                xyxy = tuple(map(lambda v: v.item(), box.xyxy[0].numpy()))
+                xyxy = tuple(map(lambda v: v.item(), box.xyxy[0].cpu().numpy()))
 
                 # Skip if no associated tracking ID
                 if box.id is None:

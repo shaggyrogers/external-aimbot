@@ -99,7 +99,11 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     aiming = Aiming(sensitivity=sensitivity)
     frameCounter = FrameCounter()
 
-    model = Model("yolo11s.pt")
+    # yolo11l takes around 10-15 ms total on 3070, which should be fine for a target of
+    # 60 FPS, but we only process around 15 frames per second and this doesn't change
+    # when reverting to yolo11s.
+    # This means there's another bottleneck somewhere we have to fix..
+    model = Model("yolo11l.pt", debug=debug)
     screenMask = GAME_MASKS["cs2"]
 
     while True:
