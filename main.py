@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-22
+  Modification Date:     2025-05-23
 
 """
 # pylint: disable=c-extension-no-member,import-error
@@ -22,11 +22,34 @@ from ultralytics import YOLO
 import arguably
 import windowcap
 import overlay
-from model import Model
+from model import Model, ScreenCoord
 from aiming import Aiming
+from screen_mask import MaskRegion, ScreenMask
 
 
 logging.basicConfig(level=logging.DEBUG)
+
+GAME_MASKS = {
+    "cs2": ScreenMask(
+        regions=[
+            # Deathmatch scoreboard
+            MaskRegion(
+                ScreenCoord(672 / 1920, 42 / 1080),
+                ScreenCoord(1247 / 1920, 96 / 1080),
+                threshold=0.9,
+            ),
+            # Local player hands & gun
+            # FIXME: Need to tweak these numbers, still happens sometimes..
+            # galil: (870, 630), (1600, 1080)
+            # p90: (1090, 600), (1860, 1080)
+            # scout: (960, 670), (1645, 1080)
+            MaskRegion(
+                ScreenCoord(870 / 1920, 632 / 1080),
+                ScreenCoord(1600 / 1920, 1080 / 1080),
+            ),
+        ]
+    )
+}
 
 
 def sigintHandler(signal, frame) -> None:
@@ -52,13 +75,17 @@ def main(wId: str, sensitivity: float = 1) -> int:
     aiming = Aiming(sensitivity=sensitivity)
 
     model = Model("yolo11s.pt")
+    screenMask = GAME_MASKS["cs2"]
 
     while True:
         width, height, data = windowcap.screenshot()
         detections = model.processFrame(Image.frombytes("RGB", (width, height), data))
-
+        detections = screenMask.filter((width, height), detections)
         target = aiming.run((width, height), detections)
 
+        # TODO: Option to draw screen mask regions?
+
+        # Draw
         overlay.clear()
 
         for det in detections:
@@ -71,8 +98,8 @@ def main(wId: str, sensitivity: float = 1) -> int:
                 det.xy1.y,
                 det.xy2.x,
                 det.xy2.y,
-                0.1 if not isTarget else 1,
-                1 if not isTarget else 0.1,
+                0.1 if isTarget else 1,
+                1 if isTarget else 0.1,
                 0.1,
                 1,
                 False,

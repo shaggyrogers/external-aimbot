@@ -6,7 +6,7 @@
   Description:           Handles aiming logic and keyboard/mouse
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-22
+  Modification Date:     2025-05-23
 
 """
 
@@ -90,12 +90,11 @@ class Aiming:
     ) -> Union[Detection, None]:
         """Return the closest Detection to the crosshair, or None if targets is empty"""
         smallestDist = math.inf
-        screenMid = ScreenCoord(screenSize[0] / 2, screenSize[1] / 2)
+        screenMid = ScreenCoord(screenSize[0], screenSize[1]) / 2
         curTarget = None
 
         for target in detections:
-            pos = target.getPosition()
-            dist = math.sqrt(pow(screenMid.x - pos.x, 2) + pow(screenMid.y - pos.y, 2))
+            dist = screenMid.distanceTo(target.getPosition())
 
             if dist < smallestDist:
                 curTarget = target
@@ -105,14 +104,14 @@ class Aiming:
 
     def _aimAt(self, screenSize: tuple[int, int], position: ScreenCoord) -> None:
         """Move mouse to position."""
-        xDelta = int((screenSize[0] / 2 - position.x) / self._sensitivity)
-        yDelta = int((screenSize[1] / 2 - position.y) / self._sensitivity)
-        self._log.debug(f"Aiming delta: ({xDelta}, {yDelta})")
+        screenMid = ScreenCoord(screenSize[0], screenSize[1]) / 2
+        delta = (position - screenMid) / self._sensitivity
+        self._log.debug(f"Aiming delta: {repr(delta)}")
 
         self._uinput.send_events(
             [
-                InputEvent(libevdev.EV_REL.REL_X, -xDelta),
-                InputEvent(libevdev.EV_REL.REL_Y, -yDelta),
+                InputEvent(libevdev.EV_REL.REL_X, int(delta.x)),
+                InputEvent(libevdev.EV_REL.REL_Y, int(delta.y)),
                 InputEvent(libevdev.EV_SYN.SYN_REPORT, 0),
             ]
         )

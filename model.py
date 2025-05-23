@@ -6,12 +6,12 @@
   Description:           Wrapper for the object detection/tracking model.
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-22
+  Modification Date:     2025-05-23
 
 """
 
 import logging
-from collections import namedtuple
+import math
 from typing import Any
 
 from ultralytics import YOLO
@@ -19,13 +19,44 @@ from PIL import Image
 
 # TODO: Compare YOLOv11 tracking with https://github.com/TrackingLaboratory/CAMELTrack
 
-ScreenCoord = namedtuple(
-    "ScreenCoord",
-    [
-        "x",
-        "y",
-    ],
-)
+
+class ScreenCoord:
+    __slots__ = ("_x", "_y")
+
+    def __init__(self, x: float, y: float) -> None:
+        self._x = x
+        self._y = y
+
+    @property
+    def x(self) -> float:
+        return self._x
+
+    @property
+    def y(self) -> float:
+        return self._y
+
+    def distanceTo(self, other: "ScreenCoord") -> float:
+        """Returns the euclidian distance between this and another ScreenCoord."""
+        return math.sqrt(pow(self.x - other.x, 2) + pow(self.y - other.y, 2))
+
+    def product(self) -> float:
+        """Returns x multiplied by y"""
+        return self.x * self.y
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(x={self.x}, y={self.y})"
+
+    def __sub__(self, other: "ScreenCoord") -> "ScreenCoord":
+        """Elementwise subtraction"""
+        return ScreenCoord(self.x - other.x, self.y - other.y)
+
+    def __truediv__(self, scalar: float) -> "ScreenCoord":
+        """Scalar division"""
+        return ScreenCoord(self.x / scalar, self.y / scalar)
+
+    def __mul__(self, other: "ScreenCoord") -> "ScreenCoord":
+        """Elementwise multiplication"""
+        return ScreenCoord(self.x * other.x, self.y * other.y)
 
 
 class Detection:
@@ -37,7 +68,13 @@ class Detection:
         self.xy1 = xy1
         self.xy2 = xy2
 
+        assert 0 <= confidence <= 1
+        assert xy1.x <= xy2.x
+        assert xy1.y <= xy2.y
+
     def getPosition(self) -> ScreenCoord:
+        # For now, just use the center of the bounding box.
+        # TODO: Use offsets for center of chest / head?
         return ScreenCoord(
             (self.xy1.x + self.xy2.x) / 2,
             (self.xy1.y + self.xy2.y) / 2,
