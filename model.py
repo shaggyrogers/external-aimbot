@@ -82,18 +82,19 @@ class Detection:
 
 
 class Model:
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str, debug: bool = False) -> None:
         self._log = logging.getLogger(
             self.__class__.__module__ + "." + self.__class__.__qualname__
         )
         self._model = YOLO(filename)
+        self._debug = debug
         self._log.info("Initialised model")
 
     def processFrame(self, img: Image) -> list[Detection]:
         """Process frame, detecting/tracking targets. Yields Detection instances."""
         results = []
 
-        for result in self._model.track(img, verbose=False):  # , device="cuda:0"
+        for result in self._model.track(img, verbose=self._debug, device="cuda:0"):
             for box in filter(
                 lambda b: result.names[int(b.cls[0])] == "person", result.boxes
             ):

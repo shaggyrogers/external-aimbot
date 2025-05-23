@@ -52,6 +52,28 @@ GAME_MASKS = {
 }
 
 
+class FrameCounter:
+    def __init__(self) -> None:
+        self._count = 0
+        self._period = 1
+        self._lastFPS = 0
+        self._lastPeriodEnd = time.monotonic()
+
+    def increment(self) -> None:
+        timeSince = time.monotonic() - self._lastPeriodEnd
+
+        if timeSince > self._period:
+            self._lastFPS = self._count / self._period
+            self._lastPeriodEnd = time.monotonic()
+            self._count = 0
+
+        self._count += 1
+
+    @property
+    def fps(self) -> int:
+        return int(self._lastFPS)
+
+
 def sigintHandler(signal, frame) -> None:
     logging.getLogger().debug("Got SIGINT, cleaning up and exiting..")
     overlay.cleanup()
@@ -60,7 +82,7 @@ def sigintHandler(signal, frame) -> None:
 
 
 @arguably.command()
-def main(windowId: str, *, sensitivity: float = 1, debug_masks: bool = False) -> int:
+def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     log = logging.getLogger()
     logging.basicConfig(level=logging.DEBUG)
 
@@ -75,6 +97,7 @@ def main(windowId: str, *, sensitivity: float = 1, debug_masks: bool = False) ->
     log.debug("Initialised windowcap")
 
     aiming = Aiming(sensitivity=sensitivity)
+    frameCounter = FrameCounter()
 
     model = Model("yolo11s.pt")
     screenMask = GAME_MASKS["cs2"]
@@ -85,10 +108,13 @@ def main(windowId: str, *, sensitivity: float = 1, debug_masks: bool = False) ->
         detections = screenMask.filter((width, height), detections)
         target = aiming.run((width, height), detections)
 
+        frameCounter.increment()
+
         # Draw
         overlay.clear()
+        overlay.addText(f"FPS: {frameCounter.fps}", 16, 16, 24, 1, 0, 0, 1, False)
 
-        if debug_masks:
+        if debug:
             for region in screenMask.regions:
                 overlay.addRectangle(
                     region.xy1.x * width,
