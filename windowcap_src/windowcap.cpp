@@ -81,8 +81,12 @@ static PyObject* windowcap_screenshot(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    PyObject* bytes = PyBytes_FromStringAndSize(buf, size);
+    // Use PyTuple_New, since PyTuple_Pack increments reference counts.
+    PyObject* result = PyTuple_New(3);
+    PyTuple_SetItem(result, 0, PyLong_FromLong(width));
+    PyTuple_SetItem(result, 1, PyLong_FromLong(height));
+    PyTuple_SetItem(result, 2, PyBytes_FromStringAndSize(buf, size));
     delete buf;
 
-    return PyTuple_Pack(3, PyLong_FromLong(width), PyLong_FromLong(height), bytes);
+    return result;
 }
