@@ -5,17 +5,12 @@
   Description:           Python interface.
                          Adapted from https://docs.python.org/3/extending/extending.html
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-21
+  Modification Date:     2025-05-23
 
 */
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #include "windowcap_x11.hpp"
 
@@ -81,6 +76,7 @@ static PyObject* windowcap_screenshot(PyObject* self, PyObject* args)
 
     if (!buf || size <= 0) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to take screenshot!");
+        std::cerr << "buf: " << buf << ", size: " << size << std::endl;
 
         return NULL;
     }

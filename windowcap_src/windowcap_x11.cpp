@@ -7,7 +7,7 @@
                          https://gist.github.com/richard-to/10017943#file-x11_screen_grab-cpp-L68
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-21
+  Modification Date:     2025-05-23
 
 */
 
@@ -66,7 +66,7 @@ char* screenshot(int& size, int& width, int& height)
     cv::Mat frame(height, width, CV_8UC4, image->data);
     cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGB);
 
-    XFree(image);
+    XDestroyImage(image);
 
     return matToArray(frame, size);
 }

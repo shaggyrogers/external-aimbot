@@ -5,7 +5,7 @@
   Description:           Header for windowcap_x11.cpp
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-21
+  Modification Date:     2025-05-23
 
 */
 
@@ -17,6 +17,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 
 struct XWinInfo {
     Display* display;
