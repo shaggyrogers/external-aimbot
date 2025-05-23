@@ -27,8 +27,6 @@ from aiming import Aiming
 from screen_mask import MaskRegion, ScreenMask
 
 
-logging.basicConfig(level=logging.DEBUG)
-
 GAME_MASKS = {
     "cs2": ScreenMask(
         regions=[
@@ -39,13 +37,15 @@ GAME_MASKS = {
                 threshold=0.9,
             ),
             # Local player hands & gun
-            # FIXME: Need to tweak these numbers, still happens sometimes..
-            # galil: (870, 630), (1600, 1080)
-            # p90: (1090, 600), (1860, 1080)
-            # scout: (960, 670), (1645, 1080)
+            # FIXME: Not really a good solution on its own - causes some wanted
+            # detections to be filtered and doesn't catch every unwanted detection of
+            # the local player.
+            # Should probably add condition that detection region must be some % of
+            # the size of this mask.
             MaskRegion(
-                ScreenCoord(870 / 1920, 632 / 1080),
-                ScreenCoord(1600 / 1920, 1080 / 1080),
+                ScreenCoord(870 / 1920, 620 / 1080),
+                ScreenCoord(1750 / 1920, 1080 / 1080),
+                threshold=0.8,
             ),
         ]
     )
@@ -60,16 +60,18 @@ def sigintHandler(signal, frame) -> None:
 
 
 @arguably.command()
-def main(wId: str, sensitivity: float = 1) -> int:
+def main(windowId: str, *, sensitivity: float = 1, debug_masks: bool = False) -> int:
     log = logging.getLogger()
+    logging.basicConfig(level=logging.DEBUG)
+
     signal.signal(signal.SIGINT, sigintHandler)
-    wId = int(wId[2:], base=16) if wId.startswith("0x") else int(wId)
+    windowId = int(windowId, base=0)
 
     overlay.init()
-    overlay.setTargetWindow(wId)
+    overlay.setTargetWindow(windowId)
     log.debug("Initialised overlay")
 
-    assert not windowcap.selectWindow(wId)
+    assert not windowcap.selectWindow(windowId)
     log.debug("Initialised windowcap")
 
     aiming = Aiming(sensitivity=sensitivity)
@@ -83,10 +85,23 @@ def main(wId: str, sensitivity: float = 1) -> int:
         detections = screenMask.filter((width, height), detections)
         target = aiming.run((width, height), detections)
 
-        # TODO: Option to draw screen mask regions?
-
         # Draw
         overlay.clear()
+
+        if debug_masks:
+            for region in screenMask.regions:
+                overlay.addRectangle(
+                    region.xy1.x * width,
+                    region.xy1.y * height,
+                    region.xy2.x * width,
+                    region.xy2.y * height,
+                    0.1,
+                    0.1,
+                    0.7,
+                    0.8,
+                    False,
+                    2,
+                )
 
         for det in detections:
             isTarget = det is target
@@ -101,7 +116,7 @@ def main(wId: str, sensitivity: float = 1) -> int:
                 0.1 if isTarget else 1,
                 1 if isTarget else 0.1,
                 0.1,
-                1,
+                0.8,
                 False,
                 2,
             )

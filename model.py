@@ -14,7 +14,7 @@ import logging
 import math
 from typing import Any
 
-from ultralytics import YOLO
+from ultralytics import YOLO, settings
 from PIL import Image
 
 # TODO: Compare YOLOv11 tracking with https://github.com/TrackingLaboratory/CAMELTrack
@@ -93,7 +93,7 @@ class Model:
         """Process frame, detecting/tracking targets. Yields Detection instances."""
         results = []
 
-        for result in self._model.track(img):  # , device="cuda:0"
+        for result in self._model.track(img, verbose=False):  # , device="cuda:0"
             for box in filter(
                 lambda b: result.names[int(b.cls[0])] == "person", result.boxes
             ):

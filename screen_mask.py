@@ -26,6 +26,14 @@ class MaskRegion:
         self._xy2 = xy2
         self._threshold = threshold
 
+    @property
+    def xy1(self) -> ScreenCoord:
+        return self._xy1
+
+    @property
+    def xy2(self) -> ScreenCoord:
+        return self._xy2
+
     def includes(self, screenSize: ScreenCoord, detection: Detection) -> bool:
         """Return True if the % area of detection falling within this region exceeds
         threshold.
@@ -62,6 +70,10 @@ class ScreenMask:
 
     def __init__(self, regions: Iterable[MaskRegion]) -> None:
         self._regions = list(regions)
+
+    @property
+    def regions(self) -> object:
+        return self._regions
 
     def filter(
         self, screenSize: tuple[int, int], detections: Iterable[Detection]

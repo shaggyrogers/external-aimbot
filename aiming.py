@@ -81,6 +81,7 @@ class Aiming:
                         return True
 
             except libevdev.device.EventsDroppedException:
+                # FIXME: This happens fairly often?
                 self._log.exception("Events dropped!")
 
         return False
@@ -106,7 +107,6 @@ class Aiming:
         """Move mouse to position."""
         screenMid = ScreenCoord(screenSize[0], screenSize[1]) / 2
         delta = (position - screenMid) / self._sensitivity
-        self._log.debug(f"Aiming delta: {repr(delta)}")
 
         self._uinput.send_events(
             [
