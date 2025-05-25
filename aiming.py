@@ -6,7 +6,7 @@
   Description:           Handles aiming logic and keyboard/mouse
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-23
+  Modification Date:     2025-05-24
 
 """
 
@@ -58,6 +58,7 @@ class Aiming:
 
     def _getKeyboards(self) -> list[libevdev.Device]:
         """Open all keyboard devices in non-blocking mode. Returns a list of Device."""
+        # FIXME: We get duplicates of each keyboard
         result = []
 
         for path in Path("/dev/input/by-path/").glob("*-kbd"):

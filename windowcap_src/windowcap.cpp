@@ -5,7 +5,7 @@
   Description:           Python interface.
                          Adapted from https://docs.python.org/3/extending/extending.html
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-23
+  Modification Date:     2025-05-25
 
 */
 
@@ -60,19 +60,23 @@ static PyObject* windowcap_select_window(PyObject* self, PyObject* args)
     return PyLong_FromLong(selectWindow(id));
 }
 
-// screenshot() -> Tuple[int, int, bytes]:
-// Takes a screenshot of the previously selected window.
+// screenshot(region: Optional[tuple[int, int, int, int]] = None) -> Tuple[int, int, bytes]:
+// Takes a screenshot of the previously selected window, or optionally a given
+// region thereof, provided as (x, y, w, h) where (x, y) is the top-left corner
+// and (w, h) are the width and height of the region.
 // Returns a tuple containing the image width, height and pixels (bytes, RGB) respectively
 static PyObject* windowcap_screenshot(PyObject* self, PyObject* args)
 {
-    if (!PyArg_ParseTuple(args, "")) {
-        PyErr_SetString(PyExc_TypeError, "Unexpected argument(s)");
+    int rX = -1, rY = -1, rW = -1, rH = -1;
+
+    if (!PyArg_ParseTuple(args, "|(iiii)", &rX, &rY, &rW, &rH)) {
+        PyErr_SetString(PyExc_TypeError, "Too many arguments or invalid region (4-tuple expected)");
 
         return NULL;
     }
 
     int size = 0, width = 0, height = 0;
-    char* buf = screenshot(size, width, height);
+    char* buf = screenshot(size, width, height, rX, rY, rW, rH);
 
     if (!buf || size <= 0) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to take screenshot!");

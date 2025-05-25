@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-23
+  Modification Date:     2025-05-25
 
 """
 # pylint: disable=c-extension-no-member,import-error
@@ -17,7 +17,11 @@ import sys
 import time
 
 from PIL import Image
+import pyinstrument
+import torch
 from ultralytics import YOLO
+
+assert torch.cuda.is_available()
 
 import arguably
 import windowcap
@@ -53,6 +57,8 @@ GAME_MASKS = {
 
 
 class FrameCounter:
+    """Reports average frames processed per second."""
+
     def __init__(self) -> None:
         self._count = 0
         self._period = 1
@@ -90,8 +96,12 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     windowId = int(windowId, base=0)
 
     overlay.init()
-    overlay.setTargetWindow(windowId)
+    width, height = overlay.setTargetWindow(windowId)
     log.debug("Initialised overlay")
+
+    screenMid = ScreenCoord(width / 2, height / 2)
+    regionTopLeft = screenMid - ScreenCoord(640 / 2, 480 / 2)
+    region = tuple(map(int, (regionTopLeft.x, regionTopLeft.y, 640, 480)))
 
     assert not windowcap.selectWindow(windowId)
     log.debug("Initialised windowcap")
@@ -99,32 +109,41 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     aiming = Aiming(sensitivity=sensitivity)
     frameCounter = FrameCounter()
 
-    # yolo11l takes around 10-15 ms total on 3070, which should be fine for a target of
-    # 60 FPS, but we only process around 15 frames per second and this doesn't change
-    # when reverting to yolo11s.
-    # This means there's another bottleneck somewhere we have to fix..
-    model = Model("yolo11l.pt", debug=debug)
+    model = Model("yolo11m.pt", debug=debug)
     screenMask = GAME_MASKS["cs2"]
 
     while True:
-        width, height, data = windowcap.screenshot()
-        detections = model.processFrame(Image.frombytes("RGB", (width, height), data))
+        width, height, data = windowcap.screenshot(region)
+        image = Image.frombytes("RGB", (width, height), data)
+        detections = model.processFrame(image, offset=regionTopLeft)
         detections = screenMask.filter((width, height), detections)
-        target = aiming.run((width, height), detections)
 
+        target = aiming.run((width, height), detections)
         frameCounter.increment()
 
         # Draw
         overlay.clear()
         overlay.addText(f"FPS: {frameCounter.fps}", 16, 16, 24, 1, 0, 0, 1, False)
+        overlay.addRectangle(
+            region[0],
+            region[1],
+            region[0] + region[2],
+            region[1] + region[3],
+            1,
+            1,
+            1,
+            0.5,
+            False,
+            1,
+        )
 
         if debug:
-            for region in screenMask.regions:
+            for maskRegion in screenMask.regions:
                 overlay.addRectangle(
-                    region.xy1.x * width,
-                    region.xy1.y * height,
-                    region.xy2.x * width,
-                    region.xy2.y * height,
+                    maskRegion.xy1.x * width,
+                    maskRegion.xy1.y * height,
+                    maskRegion.xy2.x * width,
+                    maskRegion.xy2.y * height,
                     0.1,
                     0.1,
                     0.7,

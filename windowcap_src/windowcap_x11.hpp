@@ -5,7 +5,7 @@
   Description:           Header for windowcap_x11.cpp
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-23
+  Modification Date:     2025-05-25
 
 */
 
@@ -27,6 +27,6 @@ struct XWinInfo {
 extern XWinInfo gWindowInfo;
 
 int selectWindow(unsigned int id);
-char* screenshot(int& size, int& width, int& height);
+char* screenshot(int& size, int& width, int& height, int x = -1, int y = -1, int w = -1, int h = -1);
 
 #endif // __WINDOWCAP_X11_H__

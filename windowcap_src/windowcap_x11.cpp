@@ -7,7 +7,7 @@
                          https://gist.github.com/richard-to/10017943#file-x11_screen_grab-cpp-L68
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-23
+  Modification Date:     2025-05-25
 
 */
 
@@ -48,21 +48,32 @@ char* matToArray(cv::Mat mat, int& size)
     return buf;
 }
 
-// Take a screenshot of a window whose title contains name.
+// Take a screenshot of a window whose title contains name, optionally in
+// a specified region (if all of x, y, w, h are not -1)
 // Returns a pointer to an array of size pixels (RGB) representing
 // a width x height image
-char* screenshot(int& size, int& width, int& height)
+char* screenshot(int& size, int& width, int& height, int x, int y, int w, int h)
 {
+    if (x == -1 || y == -1 || w == -1 || h == -1) {
+        // No region specified
+        x = 0;
+        y = 0;
+        w = gWindowInfo.targetAttrs.width;
+        h = gWindowInfo.targetAttrs.height;
+    }
+
+    width = w;
+    height = h;
+
     if (!gWindowInfo.display || !gWindowInfo.target) {
         std::cerr << "selectWindow() either failed or was not called first!" << std::endl;
 
         return 0;
     }
 
-    width = gWindowInfo.targetAttrs.width;
-    height = gWindowInfo.targetAttrs.height;
+    // std::cerr << "Taking screenshot: (" << x << ", " << y << ", " << w << ", " << h << ")" << std::endl;
 
-    XImage* image = XGetImage(gWindowInfo.display, gWindowInfo.target, 0, 0, width, height, AllPlanes, ZPixmap);
+    XImage* image = XGetImage(gWindowInfo.display, gWindowInfo.target, x, y, w, h, AllPlanes, ZPixmap);
     cv::Mat frame(height, width, CV_8UC4, image->data);
     cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGB);
 

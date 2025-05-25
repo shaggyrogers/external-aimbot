@@ -6,7 +6,7 @@
   Description:           Wrapper for the object detection/tracking model.
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-23
+  Modification Date:     2025-05-25
 
 """
 
@@ -58,6 +58,10 @@ class ScreenCoord:
         """Elementwise multiplication"""
         return ScreenCoord(self.x * other.x, self.y * other.y)
 
+    def __add__(self, other: "ScreenCoord") -> "ScreenCoord":
+        """Elementwise addition"""
+        return ScreenCoord(other.x + self.x, other.y + self.y)
+
 
 class Detection:
     def __init__(
@@ -90,11 +94,13 @@ class Model:
         self._debug = debug
         self._log.info("Initialised model")
 
-    def processFrame(self, img: Image) -> list[Detection]:
-        """Process frame, detecting/tracking targets. Yields Detection instances."""
+    def processFrame(self, img: Image, offset: ScreenCoord) -> list[Detection]:
+        """Process frame, detecting/tracking targets. Yields Detection instances.
+        Offset is added to the positions of all detections
+        """
         results = []
 
-        for result in self._model.track(img, verbose=self._debug, device="cuda:0"):
+        for result in self._model.track(img, verbose=self._debug):
             for box in filter(
                 lambda b: result.names[int(b.cls[0])] == "person", result.boxes
             ):
@@ -108,8 +114,8 @@ class Model:
                     Detection(
                         int(box.id.item()),
                         box.conf.item(),
-                        ScreenCoord(xyxy[0], xyxy[1]),
-                        ScreenCoord(xyxy[2], xyxy[3]),
+                        ScreenCoord(xyxy[0] + offset.x, xyxy[1] + offset.y),
+                        ScreenCoord(xyxy[2] + offset.x, xyxy[3] + offset.y),
                     )
                 )
 
