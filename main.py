@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-25
+  Modification Date:     2025-05-26
 
 """
 # pylint: disable=c-extension-no-member,import-error
@@ -21,8 +21,6 @@ import pyinstrument
 import torch
 from ultralytics import YOLO
 
-assert torch.cuda.is_available()
-
 import arguably
 import windowcap
 import overlay
@@ -34,23 +32,13 @@ from screen_mask import MaskRegion, ScreenMask
 GAME_MASKS = {
     "cs2": ScreenMask(
         regions=[
-            # Deathmatch scoreboard
-            MaskRegion(
-                ScreenCoord(672 / 1920, 42 / 1080),
-                ScreenCoord(1247 / 1920, 96 / 1080),
-                threshold=0.9,
-            ),
-            # Local player hands & gun
-            # FIXME: Not really a good solution on its own - causes some wanted
-            # detections to be filtered and doesn't catch every unwanted detection of
-            # the local player.
-            # Should probably add condition that detection region must be some % of
-            # the size of this mask.
-            MaskRegion(
-                ScreenCoord(870 / 1920, 620 / 1080),
-                ScreenCoord(1750 / 1920, 1080 / 1080),
-                threshold=0.8,
-            ),
+            # TODO
+            # The part of the local player model that intersects the scan area
+            # MaskRegion(
+            #     ScreenCoord(870 / 1920, 620 / 1080),
+            #     ScreenCoord(1750 / 1920, 1080 / 1080),
+            #     threshold=0.8,
+            # ),
         ]
     )
 }
@@ -61,15 +49,14 @@ class FrameCounter:
 
     def __init__(self) -> None:
         self._count = 0
-        self._period = 1
         self._lastFPS = 0
         self._lastPeriodEnd = time.monotonic()
 
     def increment(self) -> None:
         timeSince = time.monotonic() - self._lastPeriodEnd
 
-        if timeSince > self._period:
-            self._lastFPS = self._count / self._period
+        if timeSince >= 1:
+            self._lastFPS = self._count
             self._lastPeriodEnd = time.monotonic()
             self._count = 0
 
@@ -92,14 +79,20 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     log = logging.getLogger()
     logging.basicConfig(level=logging.DEBUG)
 
+    if not torch.cuda.is_available():
+        log.warning(f"GPU acceleration not available!")
+
     signal.signal(signal.SIGINT, sigintHandler)
     windowId = int(windowId, base=0)
 
     overlay.init()
-    width, height = overlay.setTargetWindow(windowId)
+    screenWidth, screenHeight = overlay.setTargetWindow(windowId)
     log.debug("Initialised overlay")
 
-    screenMid = ScreenCoord(width / 2, height / 2)
+    # Only look at 640x480 rectangle centred at the crosshair.
+    # This is for performance reasons but also mostly avoids spurious detections of player
+    # model and deathmatch scoreboard in cs2 (at least at 1920x1080)
+    screenMid = ScreenCoord(screenWidth / 2, screenHeight / 2)
     regionTopLeft = screenMid - ScreenCoord(640 / 2, 480 / 2)
     region = tuple(map(int, (regionTopLeft.x, regionTopLeft.y, 640, 480)))
 
@@ -113,12 +106,13 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     screenMask = GAME_MASKS["cs2"]
 
     while True:
-        width, height, data = windowcap.screenshot(region)
-        image = Image.frombytes("RGB", (width, height), data)
-        detections = model.processFrame(image, offset=regionTopLeft)
-        detections = screenMask.filter((width, height), detections)
+        regionWidth, regionHeight, data = windowcap.screenshot(region)
+        image = Image.frombytes("RGB", (regionWidth, regionHeight), data)
 
-        target = aiming.run((width, height), detections)
+        detections = model.processFrame(image, offset=regionTopLeft)
+        detections = screenMask.filter((screenWidth, screenHeight), detections)
+
+        target = aiming.run(screenMid, detections)
         frameCounter.increment()
 
         # Draw
@@ -140,10 +134,10 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
         if debug:
             for maskRegion in screenMask.regions:
                 overlay.addRectangle(
-                    maskRegion.xy1.x * width,
-                    maskRegion.xy1.y * height,
-                    maskRegion.xy2.x * width,
-                    maskRegion.xy2.y * height,
+                    maskRegion.xy1.x * screenWidth,
+                    maskRegion.xy1.y * screenHeight,
+                    maskRegion.xy2.x * screenWidth,
+                    maskRegion.xy2.y * screenHeight,
                     0.1,
                     0.1,
                     0.7,

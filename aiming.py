@@ -6,7 +6,7 @@
   Description:           Handles aiming logic and keyboard/mouse
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-24
+  Modification Date:     2025-05-26
 
 """
 
@@ -26,10 +26,6 @@ import libevdev
 from libevdev import InputEvent
 
 from model import Detection, ScreenCoord
-
-
-# TODO: Should probably separate aiming logic from user input/output
-# TODO: Add triggerbot functionality
 
 
 class Aiming:
@@ -88,11 +84,10 @@ class Aiming:
         return False
 
     def _selectTarget(
-        self, screenSize: tuple[int, int], detections: list[Detection]
+        self, screenMid: ScreenCoord, detections: list[Detection]
     ) -> Union[Detection, None]:
         """Return the closest Detection to the crosshair, or None if targets is empty"""
         smallestDist = math.inf
-        screenMid = ScreenCoord(screenSize[0], screenSize[1]) / 2
         curTarget = None
 
         for target in detections:
@@ -104,11 +99,9 @@ class Aiming:
 
         return curTarget
 
-    def _aimAt(self, screenSize: tuple[int, int], position: ScreenCoord) -> None:
+    def _aimAt(self, screenMid: ScreenCoord, position: ScreenCoord) -> None:
         """Move mouse to position."""
-        screenMid = ScreenCoord(screenSize[0], screenSize[1]) / 2
         delta = (position - screenMid) / self._sensitivity
-
         self._uinput.send_events(
             [
                 InputEvent(libevdev.EV_REL.REL_X, int(delta.x)),
@@ -117,16 +110,49 @@ class Aiming:
             ]
         )
 
+    def _fire(self) -> None:
+        """Left click the mouse."""
+        self._uinput.send_events(
+            [
+                InputEvent(libevdev.EV_KEY.BTN_LEFT, 1),
+                InputEvent(libevdev.EV_SYN.SYN_REPORT, 0),
+                InputEvent(libevdev.EV_KEY.BTN_LEFT, 0),
+                InputEvent(libevdev.EV_SYN.SYN_REPORT, 0),
+            ]
+        )
+
+    def _isAimingAtPlayer(
+        self, screenMid: ScreenCoord, detections: list[Detection]
+    ) -> bool:
+        """True if the crosshair falls within a detection, False otherwise."""
+        for det in detections:
+            if (
+                det.xy1.x <= screenMid.x
+                and det.xy2.x >= screenMid.x
+                and det.xy1.y <= screenMid.y
+                and det.xy2.y >= screenMid.y
+            ):
+                return True
+
+        return False
+
     def run(
-        self, screenSize: tuple[int, int], detections: list[Detection]
+        self,
+        screenMid: ScreenCoord,
+        detections: list[Detection],
+        aimbot: bool = True,
+        triggerbot: bool = True,
     ) -> Union[Detection, None]:
-        """Run aimbot. Returns current target, or None if no target was found or aimbot is inactive."""
+        """Run aimbot and triggerbot. Returns current target, or None if no target was found/selected."""
         if not self._isAimKeyPressed():
             return None
 
-        target = self._selectTarget(screenSize, detections)
+        target = None
 
-        if target:
-            self._aimAt(screenSize, target.getPosition())
+        if aimbot and (target := self._selectTarget(screenMid, detections)):
+            self._aimAt(screenMid, target.getPosition())
+
+        if triggerbot and self._isAimingAtPlayer(screenMid, detections):
+            self._fire()
 
         return target
