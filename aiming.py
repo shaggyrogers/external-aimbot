@@ -87,7 +87,7 @@ class Aiming:
 
         if aimbot and (target := self._selectTarget(screenMid, detections)):
             self._inputMgr.mouseMove(
-                (target.getPosition() - screenMid) / self._sensitivity
+                (target.getPosition() - screenMid) / (1 / self._sensitivity)  # FIXME
             )
 
         if triggerbot and self._isAimingAtPlayer(screenMid, detections):
