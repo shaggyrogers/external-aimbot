@@ -38,7 +38,7 @@ class Aiming:
 
         # TODO: Option to change this? should probably be the domain of InputManager
         # TODO: Also want aimbot/triggerbot/(body/head) toggles
-        self._aimKey = libevdev.EV_KEY.KEY_CAPSLOCK
+        self._aimKey = libevdev.EV_KEY.KEY_LEFTALT  # KEY_CAPSLOCK
         self._sensitivity = sensitivity
 
     def _selectTarget(

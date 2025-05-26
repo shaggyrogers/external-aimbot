@@ -6,7 +6,7 @@
   Description:           Filter out detections for certain parts of the screen.
   Author:                Michael De Pasquale
   Creation Date:         2025-05-22
-  Modification Date:     2025-05-23
+  Modification Date:     2025-05-26
 
 """
 
@@ -63,6 +63,28 @@ class MaskRegion:
         assert fullArea >= incArea >= 0
 
         return incArea / fullArea >= self._threshold
+
+
+class AbsAreaMaskRegion(MaskRegion):
+    """Accepts/rejects based solely on how much area the detection takes up
+    as a percentage of the mask region."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    def includes(self, screenSize: ScreenCoord, detection: Detection) -> bool:
+        xy1 = self.xy1 * screenSize
+        xy2 = self.xy2 * screenSize
+        detArea = (detection.xy2 - detection.xy1).product()
+        maskArea = (xy2 - xy1).product()
+
+        if detArea > maskArea:
+            breakpoint()
+
+        assert maskArea >= detArea
+        assert detArea >= 0 and maskArea >= 0
+
+        return detArea / maskArea >= self._threshold
 
 
 class ScreenMask:

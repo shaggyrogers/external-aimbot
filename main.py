@@ -27,19 +27,28 @@ import overlay
 from aiming import Aiming
 from input_manager import InputManager
 from model import Model, ScreenCoord
-from screen_mask import MaskRegion, ScreenMask
+from screen_mask import AbsAreaMaskRegion, MaskRegion, ScreenMask
 
 
 GAME_MASKS = {
     "cs2": ScreenMask(
+        # Heuristics to avoid false positives.
+        # Need to be fairly agressive here, otherwise our hand will be detected
+        # as a person while reloading
         regions=[
-            # TODO
-            # The part of the local player model that intersects the scan area
-            # MaskRegion(
-            #     ScreenCoord(870 / 1920, 620 / 1080),
-            #     ScreenCoord(1750 / 1920, 1080 / 1080),
-            #     threshold=0.8,
-            # ),
+            # Ignore anything that encroaches too much into a long rectangle along
+            # the bottom of the scan area
+            MaskRegion(
+                ScreenCoord(640 / 1920, 633 / 1080),
+                ScreenCoord(1280 / 1920, 780 / 1080),
+                threshold=0.8,
+            ),
+            # Disregard detections that are too big relative to detection region
+            AbsAreaMaskRegion(
+                ScreenCoord((1920 / 2 - 640 / 2) / 1920, (1080 / 2 - 480 / 2) / 1080),
+                ScreenCoord((1920 / 2 + 640 / 2) / 1920, (1080 / 2 + 480 / 2) / 1080),
+                threshold=0.375,
+            ),
         ]
     )
 }
@@ -102,6 +111,8 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     assert not windowcap.selectWindow(windowId)
     log.debug("Initialised windowcap")
 
+    # FIXME: If game FPS too low, we will get the same frame twice in a row and
+    # consequently move the mouse too fast. Need to detect if game window has changed
     aiming = Aiming(inputMgr, sensitivity=sensitivity)
     frameCounter = FrameCounter()
 
