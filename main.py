@@ -24,8 +24,9 @@ from ultralytics import YOLO
 import arguably
 import windowcap
 import overlay
-from model import Model, ScreenCoord
 from aiming import Aiming
+from input_manager import InputManager
+from model import Model, ScreenCoord
 from screen_mask import MaskRegion, ScreenMask
 
 
@@ -85,6 +86,8 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     signal.signal(signal.SIGINT, sigintHandler)
     windowId = int(windowId, base=0)
 
+    inputMgr = InputManager()
+
     overlay.init()
     screenWidth, screenHeight = overlay.setTargetWindow(windowId)
     log.debug("Initialised overlay")
@@ -99,7 +102,7 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     assert not windowcap.selectWindow(windowId)
     log.debug("Initialised windowcap")
 
-    aiming = Aiming(sensitivity=sensitivity)
+    aiming = Aiming(inputMgr, sensitivity=sensitivity)
     frameCounter = FrameCounter()
 
     model = Model("yolo11m.pt", debug=debug)
@@ -113,6 +116,8 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
         detections = screenMask.filter((screenWidth, screenHeight), detections)
 
         target = aiming.run(screenMid, detections)
+
+        inputMgr.update()
         frameCounter.increment()
 
         # Draw

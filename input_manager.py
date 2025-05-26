@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""
+  input.py
+  ========
+
+  Description:           Handles user input devices (keyboard, mouse)
+  Author:                Michael De Pasquale
+  Creation Date:         2025-05-26
+  Modification Date:     2025-05-26
+
+"""
+
+from collections import defaultdict
+import fcntl
+import logging
+from pathlib import Path
+import os
+
+import libevdev
+from libevdev import InputEvent
+
+from model import ScreenCoord
+
+
+class InputManager:
+    def __init__(self) -> None:
+        self._log = logging.getLogger(
+            self.__class__.__module__ + "." + self.__class__.__qualname__
+        )
+        self._buttonState = defaultdict(lambda: False)
+        self._keyboards = self._getKeyboards()
+
+        self._mouse = libevdev.Device()
+        self._mouse.name = "Real Mouse"  # everyone back to the base, partner
+        self._mouse.enable(libevdev.EV_REL.REL_X)
+        self._mouse.enable(libevdev.EV_REL.REL_Y)
+        self._mouse.enable(libevdev.EV_KEY.BTN_LEFT)
+        self._mouse.enable(libevdev.EV_KEY.BTN_RIGHT)
+        self._uinput = self._mouse.create_uinput_device()
+        self._log.debug(
+            f"Created virtual mouse: {self._uinput.devnode} ({self._uinput.syspath})"
+        )
+
+    def isPressed(self, key: libevdev.EV_KEY) -> bool:
+        """Return True if key is pressed, False otherwise."""
+        # Note that the state is only recorded for keys we have seen before. A new key
+        # might incorrectly yield False until the key is released and pressed again.
+        return self._buttonState[key]
+
+    def mouseMove(self, delta: ScreenCoord) -> None:
+        """Perform relative mouse movement."""
+        self._uinput.send_events(
+            [
+                InputEvent(libevdev.EV_REL.REL_X, int(delta.x)),
+                InputEvent(libevdev.EV_REL.REL_Y, int(delta.y)),
+                InputEvent(libevdev.EV_SYN.SYN_REPORT, 0),
+            ]
+        )
+
+    def mouseClick(self) -> None:
+        """Left click the mouse."""
+        self._uinput.send_events(
+            [
+                InputEvent(libevdev.EV_KEY.BTN_LEFT, 1),
+                InputEvent(libevdev.EV_SYN.SYN_REPORT, 0),
+                InputEvent(libevdev.EV_KEY.BTN_LEFT, 0),
+                InputEvent(libevdev.EV_SYN.SYN_REPORT, 0),
+            ]
+        )
+
+    def update(self) -> bool:
+        """Process events from all keyboards, updating the recorded state for each of
+        the keys we have seen before. Should be called once per loop. Does not block.
+        """
+        for device in self._keyboards:
+            try:
+                for event in device.events():
+                    self._handleEvent(event)
+
+            except libevdev.device.EventsDroppedException:
+                self._log.exception("Events dropped! Processing dropped events...")
+
+                for event in device.sync():
+                    self._handleEvent(event)
+
+    def _handleEvent(self, event: InputEvent) -> None:
+        if event.code in self._buttonState:
+            self._buttonState[event.code] = bool(event.value)
+
+    def _getKeyboards(self) -> list[libevdev.Device]:
+        """Open all keyboard devices in non-blocking mode. Returns a list of Device."""
+        result = []
+        names = set()
+
+        for path in Path("/dev/input/by-path/").glob("*-kbd"):
+            fd = open(path, "rb")
+            fcntl.fcntl(fd, fcntl.F_SETFL, os.O_NONBLOCK)
+            device = libevdev.Device(fd)
+            assert device.has(libevdev.EV_KEY.KEY_A)
+
+            if device.name in names:
+                self._log.warning(f"Ignoring duplicate keyboard '{device.name}'")
+                fd.close()
+
+                continue
+
+            names.add(device.name)
+            self._log.debug(f"Found keyboard '{device.name}'")
+            result.append(device)
+
+        return result
