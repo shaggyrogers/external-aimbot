@@ -44,7 +44,7 @@ SCREEN_MASK = ScreenMask(
             ScreenCoord(1280 / 1920, 780 / 1080),
             threshold=0.8,
         ),
-        # Disregard detections that are too big relative to detection region
+        # Disregard detections that are too big relative to scan area
         AbsAreaMaskRegion(
             ScreenCoord((1920 / 2 - 640 / 2) / 1920, (1080 / 2 - 480 / 2) / 1080),
             ScreenCoord((1920 / 2 + 640 / 2) / 1920, (1080 / 2 + 480 / 2) / 1080),
@@ -77,9 +77,13 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     menu.addItem("Aimbot", libevdev.EV_KEY.KEY_F1)
     menu.addItem("Triggerbot", libevdev.EV_KEY.KEY_F2)
     ui = UI(menu)
-    aiming = Aiming(
-        inputMgr, libevdev.EV_KEY.BTN_SIDE, sensitivity=sensitivity
-    )  # mouse5
+    aiming = Aiming(inputMgr, libevdev.EV_KEY.BTN_SIDE, sensitivity=sensitivity)
+
+    log.info("======== Controls ========")
+    log.info(" * Activate: Mouse5 ")
+    log.info(" * Toggle Aimbot: F1")
+    log.info(" * Toggle Triggerbot: F2")
+    log.info("==========================")
 
     overlay.init()
     screenWidth, screenHeight = overlay.setTargetWindow(windowId)
