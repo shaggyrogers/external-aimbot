@@ -119,6 +119,7 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
                 triggerbot=menu["Triggerbot"],
             ),
             SCREEN_MASK if debug else None,
+            triggerBoxes=menu["Triggerbot"],
         )
 
         time.sleep(0)  # os.sched_yield() ?

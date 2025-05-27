@@ -6,7 +6,7 @@
   Description:           Wrapper for the object detection/tracking model.
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-25
+  Modification Date:     2025-05-27
 
 """
 
@@ -82,6 +82,18 @@ class Detection:
         return ScreenCoord(
             (self.xy1.x + self.xy2.x) / 2,
             (self.xy1.y + self.xy2.y) / 2,
+        )
+
+    def getTriggerBox(self) -> tuple[ScreenCoord, ScreenCoord]:
+        """Return a smaller box to be used by the triggerbot"""
+        # FIXME: Should probably add lower bounds to avoid box being too tiny
+        center = self.getPosition()
+        wHalf = (self.xy2.x - self.xy1.x) / 2 * 0.8
+        hHalf = (self.xy2.y - self.xy1.y) / 2 * 0.8
+
+        return (
+            ScreenCoord(center.x - wHalf, center.y - hHalf),
+            ScreenCoord(center.x + wHalf, center.y + hHalf),
         )
 
 

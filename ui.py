@@ -105,6 +105,7 @@ class UI:
         detections: list[Detection],
         target: Union[Detection, None],
         screenMask: Union[ScreenMask, None] = None,
+        triggerBoxes: bool = False,
     ) -> None:
         # CHECK: Can probably just import overlay instead of passing as argument?
         overlay.clear()
@@ -156,6 +157,21 @@ class UI:
                 False,
                 2,
             )
+
+            if triggerBoxes:
+                triggerBox = det.getTriggerBox()
+                overlay.addRectangle(
+                    triggerBox[0].x,
+                    triggerBox[0].y,
+                    triggerBox[1].x,
+                    triggerBox[1].y,
+                    1,
+                    0,
+                    0,
+                    0.2,
+                    True,
+                    1,
+                )
 
         overlay.draw()
         self._frameCounter.increment()

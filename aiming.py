@@ -55,11 +55,13 @@ class Aiming:
     ) -> bool:
         """True if the crosshair falls within a detection, False otherwise."""
         for det in detections:
+            box = det.getTriggerBox()
+
             if (
-                det.xy1.x <= screenMid.x
-                and det.xy2.x >= screenMid.x
-                and det.xy1.y <= screenMid.y
-                and det.xy2.y >= screenMid.y
+                box[0].x <= screenMid.x
+                and box[1].x >= screenMid.x
+                and box[0].y <= screenMid.y
+                and box[1].y >= screenMid.y
             ):
                 return True
 
