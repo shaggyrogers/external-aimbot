@@ -3,17 +3,12 @@
   aiming.py
   =========
 
-  Description:           Handles aiming logic and keyboard/mouse
+  Description:           Implements the aimbot/triggerbot
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-26
+  Modification Date:     2025-05-27
 
 """
-
-# NOTE: You likely won't have permission to read /dev/input/*, which will cause
-# _getKeyboards() to fail. To fix this, add yourself to the 'input' group:
-# >usermod -a -G input $USER_NAME
-# Restart or use newgrp for this to take effect!
 
 import logging
 import os
@@ -33,12 +28,8 @@ class Aiming:
         self._log = logging.getLogger(
             self.__class__.__module__ + "." + self.__class__.__qualname__
         )
-
         self._inputMgr = inputMgr
-
-        # TODO: Option to change this? should probably be the domain of InputManager
-        # TODO: Also want aimbot/triggerbot/(body/head) toggles
-        self._aimKey = libevdev.EV_KEY.KEY_LEFTALT  # KEY_CAPSLOCK
+        self._aimKey = libevdev.EV_KEY.KEY_CAPSLOCK
         self._sensitivity = sensitivity
 
     def _selectTarget(
@@ -79,15 +70,17 @@ class Aiming:
         aimbot: bool = True,
         triggerbot: bool = True,
     ) -> Union[Detection, None]:
-        """Run aimbot and triggerbot. Returns current target, or None if no target was found/selected."""
-        if not self._inputMgr.isPressed(self._aimKey):
+        """Run aimbot and triggerbot.
+        Returns current target, or None if no target was found/selected.
+        """
+        if not self._inputMgr.isPressed(self._aimKey) or not (aimbot or triggerbot):
             return None
 
         target = None
 
         if aimbot and (target := self._selectTarget(screenMid, detections)):
             self._inputMgr.mouseMove(
-                (target.getPosition() - screenMid) / (1 / self._sensitivity)  # FIXME
+                (target.getPosition() - screenMid) / (1 / self._sensitivity)
             )
 
         if triggerbot and self._isAimingAtPlayer(screenMid, detections):

@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-26
+  Modification Date:     2025-05-27
 
 """
 # pylint: disable=c-extension-no-member,import-error
@@ -16,65 +16,42 @@ import signal
 import sys
 import time
 
+import arguably
+import libevdev
 from PIL import Image
 import pyinstrument
 import torch
 from ultralytics import YOLO
 
-import arguably
-import windowcap
-import overlay
 from aiming import Aiming
 from input_manager import InputManager
 from model import Model, ScreenCoord
+import overlay
 from screen_mask import AbsAreaMaskRegion, MaskRegion, ScreenMask
+from ui import Menu, UI
+import windowcap
 
 
-GAME_MASKS = {
-    "cs2": ScreenMask(
-        # Heuristics to avoid false positives.
-        # Need to be fairly agressive here, otherwise our hand will be detected
-        # as a person while reloading
-        regions=[
-            # Ignore anything that encroaches too much into a long rectangle along
-            # the bottom of the scan area
-            MaskRegion(
-                ScreenCoord(640 / 1920, 633 / 1080),
-                ScreenCoord(1280 / 1920, 780 / 1080),
-                threshold=0.8,
-            ),
-            # Disregard detections that are too big relative to detection region
-            AbsAreaMaskRegion(
-                ScreenCoord((1920 / 2 - 640 / 2) / 1920, (1080 / 2 - 480 / 2) / 1080),
-                ScreenCoord((1920 / 2 + 640 / 2) / 1920, (1080 / 2 + 480 / 2) / 1080),
-                threshold=0.375,
-            ),
-        ]
-    )
-}
-
-
-class FrameCounter:
-    """Reports average frames processed per second."""
-
-    def __init__(self) -> None:
-        self._count = 0
-        self._lastFPS = 0
-        self._lastPeriodEnd = time.monotonic()
-
-    def increment(self) -> None:
-        timeSince = time.monotonic() - self._lastPeriodEnd
-
-        if timeSince >= 1:
-            self._lastFPS = self._count
-            self._lastPeriodEnd = time.monotonic()
-            self._count = 0
-
-        self._count += 1
-
-    @property
-    def fps(self) -> int:
-        return int(self._lastFPS)
+SCREEN_MASK = ScreenMask(
+    # Heuristics to avoid false positives.
+    # Need to be fairly agressive here, otherwise our hand will be detected
+    # as a person while reloading
+    regions=[
+        # Ignore anything that encroaches too much into a long rectangle along
+        # the bottom of the scan area
+        MaskRegion(
+            ScreenCoord(640 / 1920, 633 / 1080),
+            ScreenCoord(1280 / 1920, 780 / 1080),
+            threshold=0.8,
+        ),
+        # Disregard detections that are too big relative to detection region
+        AbsAreaMaskRegion(
+            ScreenCoord((1920 / 2 - 640 / 2) / 1920, (1080 / 2 - 480 / 2) / 1080),
+            ScreenCoord((1920 / 2 + 640 / 2) / 1920, (1080 / 2 + 480 / 2) / 1080),
+            threshold=0.375,
+        ),
+    ]
+)
 
 
 def sigintHandler(signal, frame) -> None:
@@ -90,12 +67,16 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     logging.basicConfig(level=logging.DEBUG)
 
     if not torch.cuda.is_available():
-        log.warning(f"GPU acceleration not available!")
+        log.warning("GPU acceleration not available!")
 
     signal.signal(signal.SIGINT, sigintHandler)
     windowId = int(windowId, base=0)
 
     inputMgr = InputManager()
+    menu = Menu(inputMgr)
+    menu.addItem("Aimbot", libevdev.EV_KEY.KEY_F1)
+    menu.addItem("Triggerbot", libevdev.EV_KEY.KEY_F2)
+    ui = UI(menu)
 
     overlay.init()
     screenWidth, screenHeight = overlay.setTargetWindow(windowId)
@@ -114,73 +95,30 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     # FIXME: If game FPS too low, we will get the same frame twice in a row and
     # consequently move the mouse too fast. Need to detect if game window has changed
     aiming = Aiming(inputMgr, sensitivity=sensitivity)
-    frameCounter = FrameCounter()
-
     model = Model("yolo11m.pt", debug=debug)
-    screenMask = GAME_MASKS["cs2"]
 
     while True:
         regionWidth, regionHeight, data = windowcap.screenshot(region)
         image = Image.frombytes("RGB", (regionWidth, regionHeight), data)
 
         detections = model.processFrame(image, offset=regionTopLeft)
-        detections = screenMask.filter((screenWidth, screenHeight), detections)
-
-        target = aiming.run(screenMid, detections)
+        detections = SCREEN_MASK.filter((screenWidth, screenHeight), detections)
 
         inputMgr.update()
-        frameCounter.increment()
-
-        # Draw
-        overlay.clear()
-        overlay.addText(f"FPS: {frameCounter.fps}", 16, 16, 24, 1, 0, 0, 1, False)
-        overlay.addRectangle(
-            region[0],
-            region[1],
-            region[0] + region[2],
-            region[1] + region[3],
-            1,
-            1,
-            1,
-            0.5,
-            False,
-            1,
+        ui.draw(
+            overlay,
+            (screenWidth, screenHeight),
+            region,
+            detections,
+            aiming.run(
+                screenMid,
+                detections,
+                aimbot=menu["Aimbot"],
+                triggerbot=menu["Triggerbot"],
+            ),
+            SCREEN_MASK if debug else None,
         )
 
-        if debug:
-            for maskRegion in screenMask.regions:
-                overlay.addRectangle(
-                    maskRegion.xy1.x * screenWidth,
-                    maskRegion.xy1.y * screenHeight,
-                    maskRegion.xy2.x * screenWidth,
-                    maskRegion.xy2.y * screenHeight,
-                    0.1,
-                    0.1,
-                    0.7,
-                    0.8,
-                    False,
-                    2,
-                )
-
-        for det in detections:
-            isTarget = det is target
-            overlay.addText(
-                str(det.id), det.xy1.x, det.xy1.y, 24, 0.3, 0.9, 0.3, 1, False
-            )
-            overlay.addRectangle(
-                det.xy1.x,
-                det.xy1.y,
-                det.xy2.x,
-                det.xy2.y,
-                0.1 if isTarget else 1,
-                1 if isTarget else 0.1,
-                0.1,
-                0.8,
-                False,
-                2,
-            )
-
-        overlay.draw()
         time.sleep(0)  # os.sched_yield() ?
 
     return 0

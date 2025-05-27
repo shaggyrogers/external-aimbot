@@ -6,20 +6,26 @@
   Description:           Handles user input devices (keyboard, mouse)
   Author:                Michael De Pasquale
   Creation Date:         2025-05-26
-  Modification Date:     2025-05-26
+  Modification Date:     2025-05-27
 
 """
 
 from collections import defaultdict
 import fcntl
 import logging
-from pathlib import Path
 import os
+from pathlib import Path
+from typing import Callable
 
 import libevdev
 from libevdev import InputEvent
 
 from model import ScreenCoord
+
+# NOTE: You likely won't have permission to read /dev/input/*, which will cause
+# _getKeyboards() to fail. To fix this, add yourself to the 'input' group:
+# >usermod -a -G input $USER_NAME
+# Restart or use newgrp for this to take effect!
 
 
 class InputManager:
@@ -27,7 +33,10 @@ class InputManager:
         self._log = logging.getLogger(
             self.__class__.__module__ + "." + self.__class__.__qualname__
         )
+
         self._buttonState = defaultdict(lambda: False)
+        self._buttonChangedCb = {}
+
         self._keyboards = self._getKeyboards()
 
         self._mouse = libevdev.Device()
@@ -46,6 +55,18 @@ class InputManager:
         # Note that the state is only recorded for keys we have seen before. A new key
         # might incorrectly yield False until the key is released and pressed again.
         return self._buttonState[key]
+
+    def addKeyChangeCallback(
+        self, key: libevdev.EV_KEY, cb: Callable[[bool], None]
+    ) -> None:
+        """Register a callback to be run when the state of key changes. Callback accepts
+        a bool which is True if the key was pressed and False if released."""
+        assert key not in self._buttonChangedCb
+        self._buttonChangedCb[key] = cb
+
+        # This is a button we care about now
+        # pylint: disable=pointless-statement
+        self._buttonState[key]
 
     def mouseMove(self, delta: ScreenCoord) -> None:
         """Perform relative mouse movement."""
@@ -85,7 +106,13 @@ class InputManager:
 
     def _handleEvent(self, event: InputEvent) -> None:
         if event.code in self._buttonState:
-            self._buttonState[event.code] = bool(event.value)
+            prev = self._buttonState[event.code]
+            value = bool(event.value)
+            self._buttonState[event.code] = value
+
+            if value != prev and event.code in self._buttonChangedCb:
+                self._log.debug(f"Button {event.code} changed to {value}")
+                self._buttonChangedCb[event.code](value)
 
     def _getKeyboards(self) -> list[libevdev.Device]:
         """Open all keyboard devices in non-blocking mode. Returns a list of Device."""
