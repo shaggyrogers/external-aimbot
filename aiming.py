@@ -24,12 +24,14 @@ from input_manager import InputManager
 
 
 class Aiming:
-    def __init__(self, inputMgr: InputManager, sensitivity: float = 1) -> None:
+    def __init__(
+        self, inputMgr: InputManager, aimKey: libevdev.EV_KEY, sensitivity: float = 1
+    ) -> None:
         self._log = logging.getLogger(
             self.__class__.__module__ + "." + self.__class__.__qualname__
         )
         self._inputMgr = inputMgr
-        self._aimKey = libevdev.EV_KEY.KEY_CAPSLOCK
+        self._aimKey = aimKey
         self._sensitivity = sensitivity
 
     def _selectTarget(

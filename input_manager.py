@@ -29,15 +29,16 @@ from model import ScreenCoord
 
 
 class InputManager:
-    def __init__(self) -> None:
+    def __init__(self, debug: bool = False) -> None:
         self._log = logging.getLogger(
             self.__class__.__module__ + "." + self.__class__.__qualname__
         )
 
+        self._debug = debug
         self._buttonState = defaultdict(lambda: False)
         self._buttonChangedCb = {}
 
-        self._keyboards = self._getKeyboards()
+        self._devices = self._getDevices()
 
         self._mouse = libevdev.Device()
         self._mouse.name = "Real Mouse"  # everyone back to the base, partner
@@ -93,7 +94,7 @@ class InputManager:
         """Process events from all keyboards, updating the recorded state for each of
         the keys we have seen before. Should be called once per loop. Does not block.
         """
-        for device in self._keyboards:
+        for device in self._devices:
             try:
                 for event in device.events():
                     self._handleEvent(event)
@@ -114,25 +115,34 @@ class InputManager:
                 self._log.debug(f"Button {event.code} changed to {value}")
                 self._buttonChangedCb[event.code](value)
 
-    def _getKeyboards(self) -> list[libevdev.Device]:
-        """Open all keyboard devices in non-blocking mode. Returns a list of Device."""
+        if self._debug:
+            if event.matches(libevdev.EV_SYN):
+                self._log.debug(f"event {event.code.name}")
+
+            else:
+                self._log.debug(
+                    f"event type {event.type.value:02x} {event.type.name}"
+                    f" code {event.code.value:03x} {event.code.name} value {event.value:4d}"
+                )
+
+    def _getDevices(self) -> list[libevdev.Device]:
+        """Open all input devices in non-blocking mode. Returns a list of Device."""
         result = []
         names = set()
 
-        for path in Path("/dev/input/by-path/").glob("*-kbd"):
+        for path in Path("/dev/input/").glob("event*"):
             fd = open(path, "rb")
             fcntl.fcntl(fd, fcntl.F_SETFL, os.O_NONBLOCK)
             device = libevdev.Device(fd)
-            assert device.has(libevdev.EV_KEY.KEY_A)
 
             if device.name in names:
-                self._log.warning(f"Ignoring duplicate keyboard '{device.name}'")
+                self._log.warning(f"Ignoring duplicate device '{device.name}'")
                 fd.close()
 
                 continue
 
             names.add(device.name)
-            self._log.debug(f"Found keyboard '{device.name}'")
+            self._log.debug(f"Found device '{device.name}'")
             result.append(device)
 
         return result

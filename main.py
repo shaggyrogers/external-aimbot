@@ -72,11 +72,14 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
     signal.signal(signal.SIGINT, sigintHandler)
     windowId = int(windowId, base=0)
 
-    inputMgr = InputManager()
+    inputMgr = InputManager(debug=debug)
     menu = Menu(inputMgr)
     menu.addItem("Aimbot", libevdev.EV_KEY.KEY_F1)
     menu.addItem("Triggerbot", libevdev.EV_KEY.KEY_F2)
     ui = UI(menu)
+    aiming = Aiming(
+        inputMgr, libevdev.EV_KEY.BTN_SIDE, sensitivity=sensitivity
+    )  # mouse5
 
     overlay.init()
     screenWidth, screenHeight = overlay.setTargetWindow(windowId)
@@ -94,7 +97,6 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
 
     # FIXME: If game FPS too low, we will get the same frame twice in a row and
     # consequently move the mouse too fast. Need to detect if game window has changed
-    aiming = Aiming(inputMgr, sensitivity=sensitivity)
     model = Model("yolo11m.pt", debug=debug)
 
     while True:
