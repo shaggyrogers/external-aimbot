@@ -3,7 +3,7 @@
   input.py
   ========
 
-  Description:           Handles user input devices (keyboard, mouse)
+  Description:           Handles the keyboard and mouse
   Author:                Michael De Pasquale
   Creation Date:         2025-05-26
   Modification Date:     2025-05-27
@@ -23,7 +23,7 @@ from libevdev import InputEvent
 from model import ScreenCoord
 
 # NOTE: You likely won't have permission to read /dev/input/*, which will cause
-# _getKeyboards() to fail. To fix this, add yourself to the 'input' group:
+# _getDevices() to fail. To fix this, add yourself to the 'input' group:
 # >usermod -a -G input $USER_NAME
 # Restart or use newgrp for this to take effect!
 
@@ -91,7 +91,7 @@ class InputManager:
         )
 
     def update(self) -> bool:
-        """Process events from all keyboards, updating the recorded state for each of
+        """Process events from all devices, updating the recorded state for each of
         the keys we have seen before. Should be called once per loop. Does not block.
         """
         for device in self._devices:

@@ -142,9 +142,19 @@ class UI:
 
         for det in detections:
             isTarget = det is target
+
             overlay.addText(
-                str(det.id), det.xy1.x, det.xy1.y, 24, 0.3, 0.9, 0.3, 1, False
+                f"{det.id} ({det.confidence:.2f})",
+                det.xy1.x,
+                det.xy1.y,
+                18,
+                0.3,
+                0.9,
+                0.3,
+                1,
+                False,
             )
+
             overlay.addRectangle(
                 det.xy1.x,
                 det.xy1.y,

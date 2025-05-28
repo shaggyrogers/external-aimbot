@@ -62,7 +62,13 @@ def sigintHandler(signal, frame) -> None:
 
 
 @arguably.command()
-def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
+def main(
+    windowId: str,
+    *,
+    sensitivity: float = 1,
+    threshold: float = 0.2,
+    debug: bool = False,
+) -> int:
     log = logging.getLogger()
     logging.basicConfig(level=logging.DEBUG)
 
@@ -108,7 +114,10 @@ def main(windowId: str, *, sensitivity: float = 1, debug: bool = False) -> int:
         image = Image.frombytes("RGB", (regionWidth, regionHeight), data)
 
         detections = model.processFrame(image, offset=regionTopLeft)
-        detections = SCREEN_MASK.filter((screenWidth, screenHeight), detections)
+        detections = SCREEN_MASK.filter(
+            (screenWidth, screenHeight),
+            filter(lambda d: d.confidence >= threshold, detections),
+        )
 
         inputMgr.update()
         ui.draw(
