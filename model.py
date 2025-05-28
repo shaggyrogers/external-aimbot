@@ -64,6 +64,8 @@ class ScreenCoord:
 
 
 class Detection:
+    _triggerboxScale = 0.8
+
     def __init__(
         self, id: Any, confidence: float, xy1: ScreenCoord, xy2: ScreenCoord
     ) -> None:
@@ -107,8 +109,8 @@ class Detection:
         """Return a smaller box to be used by the triggerbot"""
         # FIXME: Should probably add lower bounds to avoid box being too tiny
         center = self.getPosition()
-        wHalf = self.width / 2 * 0.8
-        hHalf = self.height / 2 * 0.8
+        wHalf = self.width / 2 * self._triggerboxScale
+        hHalf = self.height / 2 * self._triggerboxScale
 
         return (
             ScreenCoord(center.x - wHalf, center.y - hHalf),

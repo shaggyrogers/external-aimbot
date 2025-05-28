@@ -25,7 +25,7 @@ from ultralytics import YOLO
 
 from aiming import Aiming
 from input_manager import InputManager
-from model import Model, ScreenCoord
+from model import Detection, Model, ScreenCoord
 import overlay
 from screen_mask import AbsAreaMaskRegion, MaskRegion, ScreenMask
 from ui import Menu, UI
@@ -67,8 +67,18 @@ def main(
     *,
     sensitivity: float = 1,
     threshold: float = 0.4,
+    triggerbox_scale: float = 0.8,
     debug: bool = False,
 ) -> int:
+    """Run the aimbot.
+
+    Args:
+        windowId: Target window ID. Get from xwininfo.
+        sensitivity: How fast the aimbot moves the mouse. Larger values yield faster movement.
+        threshold: Confidence threshold for player detection. Must be in range [0, 1]
+        triggerbox_scale: How large triggerbot boxes are relative to bounding boxes. Must be in range [0, 1]
+        debug: Enable debug mode
+    """
     log = logging.getLogger()
     logging.basicConfig(level=logging.DEBUG)
 
@@ -78,6 +88,8 @@ def main(
     signal.signal(signal.SIGINT, sigintHandler)
     windowId = int(windowId, base=0)
     assert 0 <= threshold <= 1
+    assert 0 <= triggerbox_scale <= 1
+    Detection._triggerboxScale = triggerbox_scale
 
     inputMgr = InputManager(debug=debug)
     menu = Menu(inputMgr)
