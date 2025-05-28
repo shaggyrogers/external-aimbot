@@ -1,1 +1,32 @@
-uv run python main.py --sensitivity 1.25 $(xwininfo -int -name "Counter-Strike 2" | grep -oP "(?<=Window id: )\d+")
+#!/usr/bin/env bash
+###############################################################################
+# run.sh
+# ======
+#
+# Description:           Launch script
+# Author:                Michael De Pasquale
+# Creation Date:         2025-05-28
+# Modification Date:     2025-05-28
+#
+###############################################################################
+
+# NOTE: You may need to adjust the sensitivity values for your setup.
+
+if [ $# != "1" ]; then
+    echo "Error: Expected 1 argument"
+    echo "Usage: $0 GAME"
+    echo ""
+    echo "Supported games are 'tf2' and 'cs2'"
+
+    exit 1
+fi
+
+_findWindow() {
+    echo "$(xwininfo -name "$1" | grep -oP "(?<=Window id: )0x\d+")"
+}
+
+if [ "$1" == "cs2" ]; then
+    uv run python main.py --sensitivity 1.25 $(_findWindow "Counter-Strike 2")
+elif [ "$1" == "tf2" ]; then
+    uv run python main.py --sensitivity 1 $(_findWindow "Team Fortress 2 - Vulkan - 64 Bit")
+fi
