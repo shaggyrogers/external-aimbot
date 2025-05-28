@@ -45,6 +45,7 @@ SCREEN_MASK = ScreenMask(
             threshold=0.8,
         ),
         # Disregard detections that are too big relative to scan area
+        # FIXME: This results in false negatives when players are very close...
         AbsAreaMaskRegion(
             ScreenCoord((1920 / 2 - 640 / 2) / 1920, (1080 / 2 - 480 / 2) / 1080),
             ScreenCoord((1920 / 2 + 640 / 2) / 1920, (1080 / 2 + 480 / 2) / 1080),

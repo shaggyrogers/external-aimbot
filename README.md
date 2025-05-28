@@ -2,6 +2,8 @@
 
 This is a generic external aimbot. It finds players in the game window using YOLO11 and moves the mouse to aim at them.
 
+[Demo video](https://www.youtube.com/watch?v=ioXIijuUGmg)
+
 ## Requirements
 
 A linux distro running an X11 display server is required. Only tested on Ubuntu 24.04 with Gnome/Mutter.
@@ -19,4 +21,6 @@ TODO: Dependency list
 ## Usage
 
 * Start the target game and change to borderless windowed mode if necessary.
-* See `run.sh`
+* For supported games (currently 'tf2' and 'cs2') run the launch script:
+    - `./run.sh GAME`
+* Adjust sensitivity, threshold and triggerbox-scale as needed for your game/setup.
