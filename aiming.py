@@ -6,7 +6,7 @@
   Description:           Implements the aimbot/triggerbot
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-27
+  Modification Date:     2025-05-28
 
 """
 
@@ -73,6 +73,7 @@ class Aiming:
         detections: list[Detection],
         aimbot: bool = True,
         triggerbot: bool = True,
+        where: str = "center",
     ) -> Union[Detection, None]:
         """Run aimbot and triggerbot.
         Returns current target, or None if no target was found/selected.
@@ -84,7 +85,7 @@ class Aiming:
 
         if aimbot and (target := self._selectTarget(screenMid, detections)):
             self._inputMgr.mouseMove(
-                (target.getPosition() - screenMid) / (1 / self._sensitivity)
+                (target.getPosition(where) - screenMid) / (1 / self._sensitivity)
             )
 
         if triggerbot and self._isAimingAtPlayer(screenMid, detections):

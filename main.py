@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-27
+  Modification Date:     2025-05-28
 
 """
 # pylint: disable=c-extension-no-member,import-error
@@ -66,7 +66,7 @@ def main(
     windowId: str,
     *,
     sensitivity: float = 1,
-    threshold: float = 0.2,
+    threshold: float = 0.4,
     debug: bool = False,
 ) -> int:
     log = logging.getLogger()
@@ -77,18 +77,28 @@ def main(
 
     signal.signal(signal.SIGINT, sigintHandler)
     windowId = int(windowId, base=0)
+    assert 0 <= threshold <= 1
 
     inputMgr = InputManager(debug=debug)
     menu = Menu(inputMgr)
-    menu.addItem("Aimbot", libevdev.EV_KEY.KEY_F1)
-    menu.addItem("Triggerbot", libevdev.EV_KEY.KEY_F2)
+    menu.addItem(Menu.ToggleItem("Aimbot", libevdev.EV_KEY.KEY_F1))
+    menu.addItem(Menu.ToggleItem("Triggerbot", libevdev.EV_KEY.KEY_F2))
+    menu.addItem(
+        Menu.CycleItem("Target", libevdev.EV_KEY.KEY_F3, ["chest", "head", "center"])
+    )
     ui = UI(menu)
     aiming = Aiming(inputMgr, libevdev.EV_KEY.BTN_SIDE, sensitivity=sensitivity)
 
     log.info("======== Controls ========")
-    log.info(" * Activate: Mouse5 ")
-    log.info(" * Toggle Aimbot: F1")
-    log.info(" * Toggle Triggerbot: F2")
+    log.info(f" * Activate: {aiming._aimKey} ")
+
+    for item in menu.items:
+        log.info(
+            " * "
+            + ("Toggle" if isinstance(item, Menu.ToggleItem) else "Cycle")
+            + f" {item.name}: {item.button}"
+        )
+
     log.info("==========================")
 
     overlay.init()
@@ -130,6 +140,7 @@ def main(
                 detections,
                 aimbot=menu["Aimbot"],
                 triggerbot=menu["Triggerbot"],
+                where=menu["Target"],
             ),
             SCREEN_MASK if debug else None,
             triggerBoxes=menu["Triggerbot"],

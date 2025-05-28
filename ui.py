@@ -6,7 +6,7 @@
   Description:           Draws the overlay
   Author:                Michael De Pasquale
   Creation Date:         2025-05-27
-  Modification Date:     2025-05-27
+  Modification Date:     2025-05-28
 
 """
 
@@ -42,13 +42,64 @@ class FrameCounter:
 
 
 class Menu:
-    class ToggleItem:
-        def __init__(
-            self, name: str, button: "libevdev.EV_KEY", enabled: bool = True
-        ) -> None:
+    class BaseMenuItem:
+        def __init__(self, name: str, button: "libevdev.EV_KEY") -> None:
             self.name = name
             self.button = button
+
+        @property
+        def value(self) -> object:
+            raise NotImplementedError()
+
+        @property
+        def label(self) -> str:
+            raise NotImplementedError()
+
+        def nextValue(self) -> None:
+            raise NotImplementedError()
+
+    class ToggleItem(BaseMenuItem):
+        def __init__(
+            self,
+            name: str,
+            button: "libevdev.EV_KEY",
+            enabled: bool = True,
+        ) -> None:
+            super().__init__(name, button)
             self.enabled = enabled
+
+        @property
+        def value(self) -> bool:
+            return self.enabled
+
+        @property
+        def label(self) -> str:
+            return self.name + (" On" if self.enabled else " Off")
+
+        def nextValue(self) -> None:
+            self.enabled = not self.enabled
+
+    class CycleItem(BaseMenuItem):
+        def __init__(
+            self, name: str, button: "libevdev.EV_KEY", values: list[str]
+        ) -> None:
+            super().__init__(name, button)
+            self.values = list(values)
+            self.index = 0
+
+        @property
+        def value(self) -> bool:
+            return self.values[self.index]
+
+        @property
+        def label(self) -> str:
+            return f"{self.name}: {self.value}"
+
+        def nextValue(self) -> None:
+            self.index += 1
+
+            if self.index == len(self.values):
+                self.index = 0
 
     def __init__(self, inputMgr: InputManager) -> None:
         self._items = {}
@@ -56,21 +107,20 @@ class Menu:
 
     def __getitem__(self, name: str) -> bool:
         """Check if a menu item is enabled by name"""
-        return self._items[name].enabled
+        return self._items[name].value
 
-    def addItem(self, *args, **kwargs) -> None:
+    def addItem(self, item: BaseMenuItem) -> None:
         """Add toggle menu item"""
-        item = self.ToggleItem(*args, **kwargs)
         self._items[item.name] = item
 
         def _update_item(state: bool) -> None:
             if state:
-                item.enabled = not item.enabled
+                item.nextValue()
 
         self._inputMgr.addKeyChangeCallback(item.button, _update_item)
 
     @property
-    def items(self) -> Iterable["Menu.ToggleItem"]:
+    def items(self) -> Iterable["Menu.BaseMenuItem"]:
         return self._items.values()
 
 
@@ -85,17 +135,17 @@ class UI:
         # TODO: Make these look nice
         for item in self._menu.items:
             overlay.addText(
-                f"{item.name} {'On' if item.enabled else 'Off'}",
+                item.label,
                 pos.x,
                 pos.y,
                 24,
                 1,
                 0.2,
                 0.3,
-                1 if item.enabled else 0.75,
+                1 if item.value else 0.75,
                 False,
             )
-            pos = ScreenCoord(pos.x + 160, pos.y)
+            pos = ScreenCoord(pos.x + 180, pos.y)
 
     def draw(
         self,
@@ -143,17 +193,19 @@ class UI:
         for det in detections:
             isTarget = det is target
 
-            overlay.addText(
-                f"{det.id} ({det.confidence:.2f})",
-                det.xy1.x,
-                det.xy1.y,
-                18,
-                0.3,
-                0.9,
-                0.3,
-                1,
-                False,
-            )
+            # HACK: have screenMask => debug mode
+            if screenMask:
+                overlay.addText(
+                    f"{det.id} ({det.confidence:.2f})",
+                    det.xy1.x,
+                    det.xy1.y,
+                    18,
+                    0.3,
+                    0.9,
+                    0.3,
+                    1,
+                    False,
+                )
 
             overlay.addRectangle(
                 det.xy1.x,

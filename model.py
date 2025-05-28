@@ -6,7 +6,7 @@
   Description:           Wrapper for the object detection/tracking model.
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-27
+  Modification Date:     2025-05-28
 
 """
 
@@ -76,20 +76,39 @@ class Detection:
         assert xy1.x <= xy2.x
         assert xy1.y <= xy2.y
 
-    def getPosition(self) -> ScreenCoord:
-        # For now, just use the center of the bounding box.
-        # TODO: Use offsets for center of chest / head?
+    @property
+    def width(self) -> float:
+        return self.xy2.x - self.xy1.x
+
+    @property
+    def height(self) -> float:
+        return self.xy2.y - self.xy1.y
+
+    def getPosition(self, where: str = "center") -> ScreenCoord:
+        """Get position, optionally applying an offset to the result.
+        where can be 'center', 'head' or 'chest'
+        """
+        if where == "center":
+            return ScreenCoord(
+                (self.xy1.x + self.xy2.x) / 2,
+                (self.xy1.y + self.xy2.y) / 2,
+            )
+
+        # Use the shape of the bounding box to guess where the head/chest should be
+        assert where in ("head", "chest")
+        ratioPc = (max(1, min(2.465, self.height / self.width)) - 1) / 1.465
+        yOffPc = ratioPc * (0.08 if where == "head" else 0.38) + (1 - ratioPc) * 0.5
+
         return ScreenCoord(
-            (self.xy1.x + self.xy2.x) / 2,
-            (self.xy1.y + self.xy2.y) / 2,
+            (self.xy1.x + self.xy2.x) / 2, (self.xy1.y + self.height * yOffPc)
         )
 
     def getTriggerBox(self) -> tuple[ScreenCoord, ScreenCoord]:
         """Return a smaller box to be used by the triggerbot"""
         # FIXME: Should probably add lower bounds to avoid box being too tiny
         center = self.getPosition()
-        wHalf = (self.xy2.x - self.xy1.x) / 2 * 0.8
-        hHalf = (self.xy2.y - self.xy1.y) / 2 * 0.8
+        wHalf = self.width / 2 * 0.8
+        hHalf = self.height / 2 * 0.8
 
         return (
             ScreenCoord(center.x - wHalf, center.y - hHalf),
