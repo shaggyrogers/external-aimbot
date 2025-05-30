@@ -6,13 +6,13 @@
   Description:           Wrapper for the object detection/tracking model.
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-28
+  Modification Date:     2025-05-30
 
 """
 
 import logging
 import math
-from typing import Any
+from typing import Any, Union
 
 from ultralytics import YOLO, settings
 from PIL import Image
@@ -127,16 +127,27 @@ class Model:
         self._debug = debug
         self._log.info("Initialised model")
 
-    def processFrame(self, img: Image, offset: ScreenCoord) -> list[Detection]:
+    def processFrame(
+        self,
+        img: Image,
+        imgSize: ScreenCoord,
+        offset: ScreenCoord,
+        confidence: float = 0.25,
+    ) -> list[Detection]:
         """Process frame, detecting/tracking targets. Yields Detection instances.
         Offset is added to the positions of all detections
         """
         results = []
 
-        for result in self._model.track(img, verbose=self._debug):
-            for box in filter(
-                lambda b: result.names[int(b.cls[0])] == "person", result.boxes
-            ):
+        for result in self._model.track(
+            img,
+            verbose=self._debug,
+            classes=[0],
+            conf=confidence,
+            rect=True,
+            imgsz=(imgSize.x, imgSize.y),
+        ):
+            for box in result.boxes:
                 xyxy = tuple(map(lambda v: v.item(), box.xyxy[0].cpu().numpy()))
 
                 # Skip if no associated tracking ID

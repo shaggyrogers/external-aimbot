@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-28
+  Modification Date:     2025-05-30
 
 """
 # pylint: disable=c-extension-no-member,import-error
@@ -32,25 +32,31 @@ from ui import Menu, UI
 import windowcap
 
 
+# Only look at 640x480 rectangle centred at the crosshair.
+# This is for performance reasons but also mostly avoids spurious detections of player
+# model and deathmatch scoreboard in cs2 (at least at 1920x1080)
+REGION_SIZE = ScreenCoord(960, 640)
+
+# NOTE: Disabled for now..
 SCREEN_MASK = ScreenMask(
     # Heuristics to avoid false positives.
     # Need to be fairly agressive here, otherwise our hand will be detected
     # as a person while reloading
     regions=[
-        # Ignore anything that encroaches too much into a long rectangle along
-        # the bottom of the scan area
+        # Ignore anything that
         MaskRegion(
-            ScreenCoord(640 / 1920, 633 / 1080),
-            ScreenCoord(1280 / 1920, 780 / 1080),
+            ScreenCoord(860 / 1920, 720 / 1080),
+            ScreenCoord(1440 / 1920, 860 / 1080),
             threshold=0.8,
         ),
         # Disregard detections that are too big relative to scan area
         # FIXME: This results in false negatives when players are very close...
-        AbsAreaMaskRegion(
-            ScreenCoord((1920 / 2 - 640 / 2) / 1920, (1080 / 2 - 480 / 2) / 1080),
-            ScreenCoord((1920 / 2 + 640 / 2) / 1920, (1080 / 2 + 480 / 2) / 1080),
-            threshold=0.375,
-        ),
+        # Disabled for now.
+        # AbsAreaMaskRegion(
+        #     ScreenCoord((1920 / 2 - 640 / 2) / 1920, (1080 / 2 - 480 / 2) / 1080),
+        #     ScreenCoord((1920 / 2 + 640 / 2) / 1920, (1080 / 2 + 480 / 2) / 1080),
+        #     threshold=0.375,
+        # ),
     ]
 )
 
@@ -67,16 +73,16 @@ def main(
     windowId: str,
     *,
     sensitivity: float = 1,
-    threshold: float = 0.4,
+    confidence: float = 0.4,
     triggerbox_scale: float = 0.8,
-    debug: bool = False,
+    debug: bool = True,
 ) -> int:
     """Run the aimbot.
 
     Args:
         windowId: Target window ID. Get from xwininfo.
         sensitivity: How fast the aimbot moves the mouse. Larger values yield faster movement.
-        threshold: Confidence threshold for player detection. Must be in range [0, 1]
+        confidence: Confidence threshold for player detection. Must be in range [0, 1]
         triggerbox_scale: How large triggerbot boxes are relative to bounding boxes. Must be in range [0, 1]
         debug: Enable debug mode
     """
@@ -88,7 +94,7 @@ def main(
 
     signal.signal(signal.SIGINT, sigintHandler)
     windowId = int(windowId, base=0)
-    assert 0 <= threshold <= 1
+    assert 0 <= confidence <= 1
     assert 0 <= triggerbox_scale <= 1
     Detection._triggerboxScale = triggerbox_scale
 
@@ -118,12 +124,11 @@ def main(
     screenWidth, screenHeight = overlay.setTargetWindow(windowId)
     log.debug("Initialised overlay")
 
-    # Only look at 640x480 rectangle centred at the crosshair.
-    # This is for performance reasons but also mostly avoids spurious detections of player
-    # model and deathmatch scoreboard in cs2 (at least at 1920x1080)
     screenMid = ScreenCoord(screenWidth / 2, screenHeight / 2)
-    regionTopLeft = screenMid - ScreenCoord(640 / 2, 480 / 2)
-    region = tuple(map(int, (regionTopLeft.x, regionTopLeft.y, 640, 480)))
+    regionTopLeft = screenMid - REGION_SIZE / 2
+    region = tuple(
+        map(int, (regionTopLeft.x, regionTopLeft.y, REGION_SIZE.x, REGION_SIZE.y))
+    )
 
     assert not windowcap.selectWindow(windowId)
     log.debug("Initialised windowcap")
@@ -136,11 +141,10 @@ def main(
         regionWidth, regionHeight, data = windowcap.screenshot(region)
         image = Image.frombytes("RGB", (regionWidth, regionHeight), data)
 
-        detections = model.processFrame(image, offset=regionTopLeft)
-        detections = SCREEN_MASK.filter(
-            (screenWidth, screenHeight),
-            filter(lambda d: d.confidence >= threshold, detections),
+        detections = model.processFrame(
+            image, REGION_SIZE, offset=regionTopLeft, confidence=confidence
         )
+        detections = SCREEN_MASK.filter((screenWidth, screenHeight), detections)
 
         inputMgr.update()
         ui.draw(
