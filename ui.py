@@ -6,7 +6,7 @@
   Description:           Draws the overlay
   Author:                Michael De Pasquale
   Creation Date:         2025-05-27
-  Modification Date:     2025-05-28
+  Modification Date:     2025-06-02
 
 """
 
@@ -14,7 +14,7 @@ import time
 from typing import Iterable, Union
 
 from input_manager import InputManager
-from model import Detection, ScreenCoord
+from model import ScreenCoord, TrackedDetection
 from screen_mask import ScreenMask
 
 
@@ -152,8 +152,8 @@ class UI:
         overlay: object,
         screenSize: tuple[int, int],
         region: tuple[int, int, int, int],
-        detections: list[Detection],
-        target: Union[Detection, None],
+        detections: list[TrackedDetection],
+        target: Union[TrackedDetection, None],
         screenMask: Union[ScreenMask, None] = None,
         triggerBoxes: bool = False,
     ) -> None:
@@ -192,13 +192,14 @@ class UI:
 
         for det in detections:
             isTarget = det is target
+            interpDet = det.interpolate()
 
             # HACK: have screenMask => debug mode
             if screenMask:
                 overlay.addText(
-                    f"{det.id} ({det.confidence:.2f})",
-                    det.xy1.x,
-                    det.xy1.y,
+                    f"{det.id} ({det.latest.confidence:.2f})",
+                    det.latest.xy1.x,
+                    det.latest.xy1.y,
                     18,
                     0.3,
                     0.9,
@@ -208,10 +209,10 @@ class UI:
                 )
 
             overlay.addRectangle(
-                det.xy1.x,
-                det.xy1.y,
-                det.xy2.x,
-                det.xy2.y,
+                det.latest.xy1.x,
+                det.latest.xy1.y,
+                det.latest.xy2.x,
+                det.latest.xy2.y,
                 0.1 if isTarget else 1,
                 1 if isTarget else 0.1,
                 0.1,
@@ -219,9 +220,22 @@ class UI:
                 False,
                 2,
             )
+            # Interpolated position
+            overlay.addRectangle(
+                interpDet.xy1.x,
+                interpDet.xy1.y,
+                interpDet.xy2.x,
+                interpDet.xy2.y,
+                0.1,
+                0.2,
+                0.9,
+                0.8,
+                False,
+                2,
+            )
 
             if triggerBoxes:
-                triggerBox = det.getTriggerBox()
+                triggerBox = det.latest.getTriggerBox()
                 overlay.addRectangle(
                     triggerBox[0].x,
                     triggerBox[0].y,

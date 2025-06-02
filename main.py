@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-05-30
+  Modification Date:     2025-06-02
 
 """
 # pylint: disable=c-extension-no-member,import-error
@@ -25,7 +25,7 @@ from ultralytics import YOLO
 
 from aiming import Aiming
 from input_manager import InputManager
-from model import Detection, Model, ScreenCoord
+from model import Detection, Model, ScreenCoord, TrackedDetection, Tracker
 import overlay
 from screen_mask import AbsAreaMaskRegion, MaskRegion, ScreenMask
 from ui import Menu, UI
@@ -43,9 +43,8 @@ SCREEN_MASK = ScreenMask(
     # Need to be fairly agressive here, otherwise our hand will be detected
     # as a person while reloading
     regions=[
-        # Ignore anything that
         MaskRegion(
-            ScreenCoord(860 / 1920, 720 / 1080),
+            ScreenCoord(860 / 1920, 710 / 1080),
             ScreenCoord(1440 / 1920, 860 / 1080),
             threshold=0.8,
         ),
@@ -75,6 +74,7 @@ def main(
     sensitivity: float = 1,
     confidence: float = 0.4,
     triggerbox_scale: float = 0.8,
+    interp_scale: float = 3,
     debug: bool = True,
 ) -> int:
     """Run the aimbot.
@@ -84,6 +84,7 @@ def main(
         sensitivity: How fast the aimbot moves the mouse. Larger values yield faster movement.
         confidence: Confidence threshold for player detection. Must be in range [0, 1]
         triggerbox_scale: How large triggerbot boxes are relative to bounding boxes. Must be in range [0, 1]
+        interp_scale: Scaling factor for interpolation. Roughly the number of frames to look ahead when aiming.
         debug: Enable debug mode
     """
     log = logging.getLogger()
@@ -96,7 +97,8 @@ def main(
     windowId = int(windowId, base=0)
     assert 0 <= confidence <= 1
     assert 0 <= triggerbox_scale <= 1
-    Detection._triggerboxScale = triggerbox_scale
+    Detection._TRIGGERBOX_SCALE = triggerbox_scale
+    TrackedDetection._INTERP_SCALE = interp_scale
 
     inputMgr = InputManager(debug=debug)
     menu = Menu(inputMgr)
@@ -136,6 +138,7 @@ def main(
     # FIXME: If game FPS too low, we will get the same frame twice in a row and
     # consequently move the mouse too fast. Need to detect if game window has changed
     model = Model("yolo11m.pt", debug=debug)
+    tracker = Tracker(ScreenCoord(screenWidth, screenHeight))
 
     while True:
         regionWidth, regionHeight, data = windowcap.screenshot(region)
@@ -145,16 +148,17 @@ def main(
             image, REGION_SIZE, offset=regionTopLeft, confidence=confidence
         )
         detections = SCREEN_MASK.filter((screenWidth, screenHeight), detections)
+        tracker.update(detections)
 
         inputMgr.update()
         ui.draw(
             overlay,
             (screenWidth, screenHeight),
             region,
-            detections,
+            tracker.tracked,
             aiming.run(
                 screenMid,
-                detections,
+                tracker.tracked,
                 aimbot=menu["Aimbot"],
                 triggerbot=menu["Triggerbot"],
                 where=menu["Target"],

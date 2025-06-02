@@ -6,20 +6,17 @@
   Description:           Implements the aimbot/triggerbot
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-05-28
+  Modification Date:     2025-06-02
 
 """
 
 import logging
-import os
 import math
-from pathlib import Path
 from typing import Union
 
 import libevdev
-from libevdev import InputEvent
 
-from model import Detection, ScreenCoord
+from model import ScreenCoord, TrackedDetection
 from input_manager import InputManager
 
 
@@ -35,14 +32,14 @@ class Aiming:
         self._sensitivity = sensitivity
 
     def _selectTarget(
-        self, screenMid: ScreenCoord, detections: list[Detection]
-    ) -> Union[Detection, None]:
+        self, screenMid: ScreenCoord, detections: list[TrackedDetection]
+    ) -> Union[TrackedDetection, None]:
         """Return the closest Detection to the crosshair, or None if targets is empty"""
         smallestDist = math.inf
         curTarget = None
 
         for target in detections:
-            dist = screenMid.distanceTo(target.getPosition())
+            dist = screenMid.distanceTo(target.latest.getPosition())
 
             if dist < smallestDist:
                 curTarget = target
@@ -51,11 +48,11 @@ class Aiming:
         return curTarget
 
     def _isAimingAtPlayer(
-        self, screenMid: ScreenCoord, detections: list[Detection]
+        self, screenMid: ScreenCoord, detections: list[TrackedDetection]
     ) -> bool:
         """True if the crosshair falls within a detection, False otherwise."""
         for det in detections:
-            box = det.getTriggerBox()
+            box = det.latest.getTriggerBox()
 
             if (
                 box[0].x <= screenMid.x
@@ -70,11 +67,11 @@ class Aiming:
     def run(
         self,
         screenMid: ScreenCoord,
-        detections: list[Detection],
+        detections: list[TrackedDetection],
         aimbot: bool = True,
         triggerbot: bool = True,
         where: str = "center",
-    ) -> Union[Detection, None]:
+    ) -> Union[TrackedDetection, None]:
         """Run aimbot and triggerbot.
         Returns current target, or None if no target was found/selected.
         """
@@ -85,7 +82,8 @@ class Aiming:
 
         if aimbot and (target := self._selectTarget(screenMid, detections)):
             self._inputMgr.mouseMove(
-                (target.getPosition(where) - screenMid) / (1 / self._sensitivity)
+                (target.interpolate().getPosition(where) - screenMid)
+                * self._sensitivity
             )
 
         if triggerbot and self._isAimingAtPlayer(screenMid, detections):
