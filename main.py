@@ -6,7 +6,7 @@
   Description:           Entry point
   Author:                Michael De Pasquale
   Creation Date:         2025-05-13
-  Modification Date:     2025-06-02
+  Modification Date:     2025-06-04
 
 """
 # pylint: disable=c-extension-no-member,import-error
@@ -87,6 +87,13 @@ def main(
         interp_scale: Scaling factor for interpolation. Roughly the number of frames to look ahead when aiming.
         debug: Enable debug mode
     """
+    windowId = int(windowId, base=0)
+    assert 0 <= confidence <= 1
+    assert 0 <= triggerbox_scale <= 1
+    assert interp_scale > 0
+    Detection._TRIGGERBOX_SCALE = triggerbox_scale
+    TrackedDetection._INTERP_SCALE = interp_scale
+
     log = logging.getLogger()
     logging.basicConfig(level=logging.DEBUG)
 
@@ -94,11 +101,6 @@ def main(
         log.warning("GPU acceleration not available!")
 
     signal.signal(signal.SIGINT, sigintHandler)
-    windowId = int(windowId, base=0)
-    assert 0 <= confidence <= 1
-    assert 0 <= triggerbox_scale <= 1
-    Detection._TRIGGERBOX_SCALE = triggerbox_scale
-    TrackedDetection._INTERP_SCALE = interp_scale
 
     inputMgr = InputManager(debug=debug)
     menu = Menu(inputMgr)
@@ -135,14 +137,20 @@ def main(
     assert not windowcap.selectWindow(windowId)
     log.debug("Initialised windowcap")
 
-    # FIXME: If game FPS too low, we will get the same frame twice in a row and
-    # consequently move the mouse too fast. Need to detect if game window has changed
     model = Model("yolo11m.pt", debug=debug)
     tracker = Tracker(ScreenCoord(screenWidth, screenHeight))
+    lastImage = None
 
     while True:
         regionWidth, regionHeight, data = windowcap.screenshot(region)
         image = Image.frombytes("RGB", (regionWidth, regionHeight), data)
+
+        if image == lastImage:
+            time.sleep(0)
+
+            continue
+
+        lastImage = image
 
         detections = model.processFrame(
             image, REGION_SIZE, offset=regionTopLeft, confidence=confidence

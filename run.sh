@@ -6,7 +6,7 @@
 # Description:           Launch script
 # Author:                Michael De Pasquale
 # Creation Date:         2025-05-28
-# Modification Date:     2025-05-30
+# Modification Date:     2025-06-04
 #
 ###############################################################################
 
@@ -31,7 +31,12 @@ fi
 
 
 if [ "$1" == "cs2" ]; then
-    uv run python main.py --confidence 0.35 --sensitivity 1.25 $(_findWindow "Counter-Strike 2")
+    uv run python main.py \
+        --confidence 0.35 \
+        --sensitivity 1.25 \
+        --triggerbox-scale 0.75 \
+        --interp-scale 4 \
+        $(_findWindow "Counter-Strike 2")
 elif [ "$1" == "tf2" ]; then
     uv run python main.py \
         --sensitivity 0.43 \

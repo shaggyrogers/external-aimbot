@@ -6,7 +6,7 @@
   Description:           Wrapper for the object detection/tracking model.
   Author:                Michael De Pasquale
   Creation Date:         2025-05-21
-  Modification Date:     2025-06-02
+  Modification Date:     2025-06-04
 
 """
 
@@ -279,7 +279,10 @@ class Tracker:
 
     def _findMatch(
         self, tracked: TrackedDetection, candidates: list[Detection]
-    ) -> tuple[float, Detection, TrackedDetection]:
+    ) -> tuple[Detection, TrackedDetection]:
+        """Find best scoring candidate for tracked amongst candidates.
+        Returns 3-tuple with form (score, candidate, tracked)
+        """
         bestScore = -1
         match = None
 
@@ -292,8 +295,19 @@ class Tracker:
 
         return (bestScore, match, tracked)
 
+    def _nextId(self) -> int:
+        """Get an available tracking ID. Periodically resets ID counter."""
+        if self._curId > 4096:
+            self._curId = 0
+
+        while self._curId in self._tracked:
+            self._curId += 1
+
+        return self._curId
+
     def update(self, detections: list[Detection]) -> None:
-        # 1. Prune expired TrackedDetection instances
+        """Associate new detections with tracked players."""
+        # Prune expired TrackedDetection instances
         now = time.monotonic()
 
         for key in [
@@ -303,14 +317,12 @@ class Tracker:
         ]:
             del self._tracked[key]
 
-        # 2. Update existing TrackedDetection instances
-        # Loop, finding best match each time and removing corresponding detection and
-        # TrackedDetection until we run out of either
+        # Update existing TrackedDetection instances
         candidates = list(detections)
         tracked = list(self._tracked.values())
 
         while candidates and tracked:
-            score, matchDet, matchTrack = sorted(
+            _, matchDet, matchTrack = sorted(
                 [self._findMatch(t, candidates) for t in tracked],
                 key=lambda tup: tup[0],
                 reverse=True,
@@ -319,8 +331,7 @@ class Tracker:
             tracked.remove(matchTrack)
             matchTrack.update(matchDet)
 
-        # 3. Create new TrackedDetection for each remaining candidate
+        # Create new TrackedDetection for each remaining candidate
         for det in candidates:
-            # TODO: Periodically reset IDs, otherwise will rise indefinitely
-            self._tracked[self._curId] = TrackedDetection(self._curId, det)
-            self._curId += 1
+            newId = self._nextId()
+            self._tracked[newId] = TrackedDetection(newId, det)
