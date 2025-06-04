@@ -123,11 +123,13 @@ class Detection:
             (self.xy1.x + self.xy2.x) / 2, (self.xy1.y + self.height * yOffPc)
         )
 
-    def getTriggerBox(self) -> tuple[ScreenCoord, ScreenCoord]:
+    def getTriggerBox(self, where: str = "center") -> tuple[ScreenCoord, ScreenCoord]:
         """Return a smaller box to be used by the triggerbot"""
-        # FIXME: Only covers around half of the head. Maybe return 2 boxes, body and head?
         # FIXME: Should probably add lower bounds to avoid box being too tiny
-        center = self.getPosition()
+        # TODO: Construct diff. box covering where / head, body, center
+        assert where == "center"
+        center = self.getPosition(where)
+
         wHalf = self.width / 2 * self._TRIGGERBOX_SCALE
         hHalf = self.height / 2 * self._TRIGGERBOX_SCALE
 
@@ -190,8 +192,10 @@ class TrackedDetection:
     """Represents a tracked player. Records detections associated with the player and
     performs interpolation."""
 
-    # Max age of recorded detections and this tracked player
-    _DET_MAX_AGE = 0.4
+    # How long to record associated detections
+    _DET_MAX_AGE = 0.18
+
+    # Default framerate multiplier for interpolation
     _INTERP_SCALE = 3
 
     def __init__(self, id: Any, initial: Detection) -> None:
@@ -251,7 +255,8 @@ class TrackedDetection:
 # Additional simple tracking layer, on top of the one we already have...
 # Will hopefully make results more reliable
 class Tracker:
-    _TRACK_MAX_AGE = 0.2
+    # How long without new associated detections before a TrackedDetection expires.
+    _TRACK_MAX_AGE = 0.1
 
     def __init__(self, screenSize: ScreenCoord) -> None:
         self._maxDist = math.sqrt(

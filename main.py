@@ -32,19 +32,20 @@ from ui import Menu, UI
 import windowcap
 
 
-# Only look at 640x480 rectangle centred at the crosshair.
-# This is for performance reasons but also mostly avoids spurious detections of player
-# model and deathmatch scoreboard in cs2 (at least at 1920x1080)
-REGION_SIZE = ScreenCoord(960, 640)
+# Only look at a 640x640 box centred at the crosshair.
+# Model expects 640x640 and will scale/pad input image to fit. Using a larger region
+# means image is scaled down, and will degrade detection accuracy for distant players.
+# This also improves performance and reduces spurious detections of cs2 player model and
+# deathmatch scoreboard.
+REGION_SIZE = ScreenCoord(640, 640)
 
-# NOTE: Disabled for now..
 SCREEN_MASK = ScreenMask(
     # Heuristics to avoid false positives.
     # Need to be fairly agressive here, otherwise our hand will be detected
     # as a person while reloading
     regions=[
         MaskRegion(
-            ScreenCoord(860 / 1920, 710 / 1080),
+            ScreenCoord(870 / 1920, 700 / 1080),
             ScreenCoord(1440 / 1920, 860 / 1080),
             threshold=0.8,
         ),
@@ -74,7 +75,7 @@ def main(
     sensitivity: float = 1,
     confidence: float = 0.4,
     triggerbox_scale: float = 0.8,
-    interp_scale: float = 3,
+    interp_scale: float = 4,
     debug: bool = True,
 ) -> int:
     """Run the aimbot.
